@@ -1,87 +1,98 @@
-# 🏆 SportConnect
+# 🏆 SportConnect — Professional Sports Social & Tournament Management Platform
 
-**SportConnect** is a full-stack social networking and sports management platform designed to connect athletes, teams, sports enthusiasts, and event organizers. Built with **Next.js** on the frontend and **Node.js/Express & MongoDB** on the backend, SportConnect empowers sports communities to connect, organize matches, showcase profiles, and discover local sporting events.
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2015-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Node.js](https://img.shields.io/badge/Backend-Node.js%20%2F%20Express-339933?style=for-the-badge&logo=nodedotjs)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/Database-MongoDB-47A248?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/)
+[![Docker](https://img.shields.io/badge/Container-Docker-2496ED?style=for-the-badge&logo=docker)](https://www.docker.com/)
 
----
-
-## ✨ Key Features
-
-### 👤 Athlete Profiles & Networking
-- **Customizable Profiles**: Highlight your favorite sports, skill levels, bio, location, and social links.
-- **Connection Management**: Send, accept, or decline connection requests to build your sports network.
-- **PDF Resume / Profile Exporter**: Generate and download formatted PDF summaries of athlete profiles using PDFKit.
-
-### 🔐 Authentication & Security
-- **JWT & Session Auth**: Secure JSON Web Token authentication with persistent login state.
-- **Email OTP Password Reset**: 6-digit OTP verification delivered via Nodemailer for password recovery.
-- **Google OAuth Integration**: Fast and safe one-click login with Google OAuth.
-
-### 🏟️ Discover & Events Hub
-- **Event Discovery**: Find local sports tournaments, pickup games, and athletic meets.
-- **Event Filtering**: Search and filter events by sport type, date, location, and skill level.
-- **Match Setup**: Create and organize custom events with automated participant tracking.
-
-### 👥 Teams & Squad Management
-- **Team Creation & Rosters**: Build sports teams, recruit players, and manage member roles.
-- **Connection Discovery**: Easily invite existing connections to join your squad.
-
-### 📱 Interactive Social Feed
-- **Post Sharing**: Share posts with text and image attachments (training logs, game highlights, victories).
-- **Interactions**: Like, comment, and engage with community posts in real time.
+**SportConnect** is a state-of-the-art, full-stack social networking and athletic management web application designed for athletes, sports captains, squad managers, and tournament organizers. Built with **Next.js** on the frontend and **Node.js/Express & MongoDB** on the backend, SportConnect empowers sports communities to connect, organize matches, manage team rosters, follow tournament brackets, and generate professional athletic scouting resumes.
 
 ---
 
-## 🛠️ Tech Stack
+## ✨ Core Platform Features
 
-| Component | Technologies |
+### 📌 Fixed Sticky Top Navbar & Responsive Navigation
+- **Pinned Top Navbar**: Stays fixed at the top of the screen on all scroll depths (`position: fixed`), giving quick access to brand navigation, search, and notification popovers.
+- **Mobile Bottom Bar**: LinkedIn-style mobile navigation bar pinned at the screen bottom for smooth smartphone interaction.
+
+### 🔔 Interactive Notification System
+- **Real-Time Actionable Notifications**: Dropdown popover delivering real-time alerts with integrated **`Accept`** and **`Decline`** action buttons for:
+  - **Team Invitations**: Accept & join squads directly from notifications.
+  - **Team Join Requests**: Captain approval workflow for incoming athlete applicants.
+  - **Connection Requests**: One-click connection acceptance and dismissal.
+- **Auto-Read Sync**: Automatically updates unread badges and marks notifications read upon interaction.
+
+### 👥 Teams & Squad Management Engine
+- **Squad Creation & Customization**: Create athletic squads with sport tags, capacity limits, and descriptions.
+- **Smart Teammate Search & Invite**: Autocomplete search panel for team owners to search athletes by name/username and send direct squad invitations.
+- **Persistent Join Request States**: Remembers "⏳ Request Pending" and "Squad Member" states across page refreshes.
+- **Live Squad Chat Room**: Dedicated real-time team chat room for squad members.
+
+### 🏆 Sports Events & Tournament Hub
+- **Tournament Creation**: Host multi-sport events with customizable advancement rules (Top 2, Top 4 advance per category).
+- **Secret Key Event Access**: Join tournaments securely via unique 8-character Event Keys using a sleek custom dark-mode modal dialog.
+- **Live Match & Bracket Tracking**: Comprehensive sport-aware score updates (Football, Cricket, Basketball, Tennis, Volleyball) with group stage and knockout bracket progression.
+- **Event Photo Galleries**: Upload, like, and share high-resolution tournament photos.
+
+### 👤 Athlete Scouting Profiles & Pro Resume Generator
+- **Scouting Profiles**: Detailed athlete overview showcasing club timelines, sport tags, post history, squad memberships, and network connections.
+- **Self-Profile Protection**: Smart profile context that automatically replaces "Connect" buttons with **`Edit My Profile`** when viewing your own card.
+- **Pro Athlete Resume (PDF) Exporter**: One-click server-side PDF generation via PDFKit, exporting styled PDF resumes for sports scouting.
+
+### 📱 Social Feed & Community Engagement
+- **Interactive Feed**: Share media (training highlights, match victories, text updates), with like and comment support.
+- **Trending Athletes & Stats Overview**: Live sidebars showcasing popular athletes and personalized profile metrics.
+
+---
+
+## 🛠️ Technology Stack
+
+| Architecture Layer | Technologies |
 | :--- | :--- |
-| **Frontend** | Next.js (Pages Router), React, Redux Toolkit, CSS Modules, Axios |
-| **Backend** | Node.js, Express.js, MongoDB (Mongoose), Nodemailer, PDFKit |
-| **Authentication** | JWT, Google OAuth 2.0, OTP Verification |
-| **DevOps & Media** | Docker, Docker Compose, Multer (Local/Persistent Media Uploads) |
+| **Frontend Framework** | Next.js 15 (Pages Router), React 18, Redux Toolkit |
+| **Styling & Design System** | Vanilla CSS Modules, Dark Navy Sports Design Token Palette |
+| **Backend Framework** | Node.js, Express.js |
+| **Database & ORM** | MongoDB, Mongoose ODM |
+| **Authentication & Security** | JWT (JSON Web Tokens), Nodemailer (OTP Recovery), Google OAuth 2.0 |
+| **Document & Media Engine** | PDFKit (PDF Generation), Multer (Image Uploads & Storage) |
+| **DevOps & Containerization** | Docker, Docker Compose |
 
 ---
 
-## 📁 Directory Structure
+## 📁 Repository Directory Structure
 
 ```text
 SportConnect/
 ├── backend/
 │   ├── config/          # Mailer, OAuth, and Database configurations
-│   ├── controllers/     # Business logic for users, auth, events, and posts
-│   ├── models/          # MongoDB Schemas (User, OTP, Post, Event, Team)
-│   ├── routes/          # Express API route endpoints
+│   ├── controllers/     # Controller logic for users, auth, events, teams, and posts
+│   ├── models/          # Mongoose Schemas (User, OTP, Post, Event, Team, Notification)
+│   ├── routes/          # Express API route declarations
 │   ├── uploads/         # Local persistent upload storage for images & PDFs
-│   ├── server.js        # Express app entrypoint
-│   └── Dockerfile
+│   ├── server.js        # Backend Express server entry point
+│   ├── Dockerfile       # Container build script for Express backend
+│   └── package.json
 ├── frontend/
-│   ├── public/          # Static assets & public branding images
+│   ├── public/          # Static logos, avatars, and assets
 │   ├── src/
-│   │   ├── Components/  # Modular React components (Navbar, Modals, Feed, Cards)
-│   │   ├── config/      # Redux store & Axios API client
-│   │   ├── layout/      # Shared layout components
-│   │   ├── pages/       # Next.js page routes (Dashboard, Discover, Events, Profile, Auth)
-│   │   └── styles/      # Global & CSS Module stylesheets
-│   └── Dockerfile
+│   │   ├── Components/  # Modular UI components (Navbar, Modals, Feed, Cards)
+│   │   ├── config/      # Redux store & Axios API client instances
+│   │   ├── layout/      # Shared UserLayout & DashboardLayout wrappers
+│   │   ├── pages/       # Next.js routes (dashboard, discover, events, teams, profile)
+│   │   └── styles/      # Global design tokens and CSS modules
+│   ├── Dockerfile       # Container build script for Next.js frontend
+│   └── package.json
 ├── docker-compose.yml   # Multi-container orchestration config
 └── README.md
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Local Setup & Running Instructions
 
-### Prerequisites
+### Option 1: One-Command Docker Setup (Recommended)
 
-- [Node.js](https://nodejs.org/) (v18 or higher)
-- [MongoDB](https://www.mongodb.com/) (Local or MongoDB Atlas)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) *(Optional, for containerized run)*
-
----
-
-### Method 1: Running with Docker (Recommended)
-
-Run the entire application (Frontend + Backend + Persistent Media Storage) using Docker Compose:
+Run the entire application stack (Frontend, Backend Server, and Persistent Upload Storage) with Docker Compose:
 
 ```bash
 docker compose up --build
@@ -90,54 +101,73 @@ docker compose up --build
 - **Frontend Application**: [http://localhost:3000](http://localhost:3000)
 - **Backend API Server**: [http://localhost:9000](http://localhost:9000)
 
-> **Note on Media Uploads**: Uploaded media (profile pictures, post images) are persisted on the host system via `./backend/uploads`.
-
 ---
 
-### Method 2: Manual Local Setup
+### Option 2: Manual Development Setup
 
-#### 1. Setup Backend
-
+#### 1. Backend Server Setup
 ```bash
 cd backend
 npm install
 ```
 
-Create a `.env` file in the `backend/` directory:
-
+Create a `.env` file inside `backend/`:
 ```env
 PORT=9000
-MONGO_URL=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret
+MONGO_URI=mongodb://localhost:27017/aim-gold
+JWT_SECRET=your_jwt_secret_key_here
 EMAIL_USER=your_email@gmail.com
-EMAIL_PASS=your_email_app_password
-GOOGLE_CLIENT_ID=your_google_client_id
+EMAIL_PASS=your_app_password
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
 ```
 
 Start the backend server:
-
 ```bash
 npm run dev
 ```
 
-#### 2. Setup Frontend
-
+#### 2. Frontend Setup
 Open a new terminal window:
-
 ```bash
 cd frontend
 npm install
+```
+
+Create a `.env.local` file inside `frontend/`:
+```env
+NEXT_PUBLIC_BASE_URL=http://localhost:9000
+```
+
+Start the Next.js development server:
+```bash
 npm run dev
 ```
 
-The app will be running at [http://localhost:3000](http://localhost:3000).
+The web application will open at **[http://localhost:3000](http://localhost:3000)**.
 
 ---
 
-## 🤝 Contributing
+## 🌐 Production Deployment Guide
 
-Contributions are welcome! If you'd like to improve SportConnect, feel free to open a Pull Request or report an issue.
+### Deploying Frontend (Vercel)
+1. Import the repository into [Vercel](https://vercel.com).
+2. Set the Root Directory to `frontend`.
+3. Set the Environment Variable:
+   - `NEXT_PUBLIC_BASE_URL`: Your deployed backend API URL (e.g. `https://sportconnect-api.onrender.com`).
+4. Click **Deploy**.
+
+### Deploying Backend (Render / Railway)
+1. Create a Web Service on [Render](https://render.com) or [Railway](https://railway.app).
+2. Set Root Directory to `backend`.
+3. Set Build Command to `npm install` and Start Command to `node server.js`.
+4. Add Environment Variables:
+   - `PORT`: `9000` (or leave default for Render/Railway auto-assignment).
+   - `MONGO_URI`: Your MongoDB Atlas cluster connection string.
+   - `JWT_SECRET`: Secret key for JWT hashing.
+   - `EMAIL_USER` & `EMAIL_PASS`: App password credentials for Nodemailer.
 
 ---
 
+## 📄 License & Attribution
 
+Developed with ❤️ by **Atharv Ghumtane** & Team for **SportConnect**. All rights reserved.
