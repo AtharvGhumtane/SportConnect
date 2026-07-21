@@ -240,10 +240,9 @@ export default function ViewProfilePage({userProfile}) {
                       disabled={downloadingPdf}
                       className={styles.downloadBtn}
                       title="Download Pro Athlete Resume (PDF)"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: downloadingPdf ? 'wait' : 'pointer' }}
                     >
                       <i className={`fa-solid ${downloadingPdf ? 'fa-spinner fa-spin' : 'fa-file-pdf'}`}></i>
-                      <span>{downloadingPdf ? 'Generating...' : 'Pro Resume'}</span>
+                      <span>{downloadingPdf ? 'Generating...' : '⚡ Download Pro Resume (PDF)'}</span>
                     </button>
                   </div>
 
