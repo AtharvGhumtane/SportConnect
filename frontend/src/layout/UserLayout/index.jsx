@@ -3,7 +3,7 @@ import React from 'react';
 
 export default function UserLayout({ children }) {
   return (
-    <div>
+    <div style={{ paddingTop: '60px' }}>
       <NavbarComponent/>
       {children}
     </div>
