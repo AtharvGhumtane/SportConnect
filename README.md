@@ -147,24 +147,6 @@ The web application will open at **[http://localhost:3000](http://localhost:3000
 
 ---
 
-## 🌐 Production Deployment Guide
-
-### Deploying Frontend (Vercel)
-1. Import the repository into [Vercel](https://vercel.com).
-2. Set the Root Directory to `frontend`.
-3. Set the Environment Variable:
-   - `NEXT_PUBLIC_BASE_URL`: Your deployed backend API URL (e.g. `https://sportconnect-api.onrender.com`).
-4. Click **Deploy**.
-
-### Deploying Backend (Render / Railway)
-1. Create a Web Service on [Render](https://render.com) or [Railway](https://railway.app).
-2. Set Root Directory to `backend`.
-3. Set Build Command to `npm install` and Start Command to `node server.js`.
-4. Add Environment Variables:
-   - `PORT`: `9000` (or leave default for Render/Railway auto-assignment).
-   - `MONGO_URI`: Your MongoDB Atlas cluster connection string.
-   - `JWT_SECRET`: Secret key for JWT hashing.
-   - `EMAIL_USER` & `EMAIL_PASS`: App password credentials for Nodemailer.
 
 ---
 
