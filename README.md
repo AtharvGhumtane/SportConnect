@@ -53,7 +53,7 @@
 | **Styling & Design System** | Vanilla CSS Modules, Dark Navy Sports Design Token Palette |
 | **Backend Framework** | Node.js, Express.js |
 | **Database & ORM** | MongoDB, Mongoose ODM |
-| **Authentication & Security** | JWT (JSON Web Tokens), Nodemailer (OTP Recovery), Google OAuth 2.0 |
+| **Authentication & Security** | Stateful Session Tokens (Crypto 256-bit), Nodemailer (OTP Recovery), Google & GitHub OAuth 2.0 |
 | **Document & Media Engine** | PDFKit (PDF Generation), Multer (Image Uploads & Storage) |
 | **DevOps & Containerization** | Docker, Docker Compose |
 
