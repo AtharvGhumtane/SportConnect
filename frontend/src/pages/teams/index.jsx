@@ -40,7 +40,7 @@ export default function TeamsPage() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const res = await clientServer.get('/teams', {
+      const res = await clientServer.get(`/teams?token=${token || ""}`, {
         headers: token ? { 'x-auth-token': token } : {}
       });
       setTeams(res.data.teams || []);
@@ -204,10 +204,15 @@ export default function TeamsPage() {
     }
   };
 
+  const currentUserId = authState.user?.userId?._id || authState.user?._id;
+
   const isUserMember = (team) => {
-    const currentUserId = authState.user?.userId?._id;
     if (!currentUserId || !team.members) return false;
-    return team.members.some(m => m._id === currentUserId);
+    return team.members.some(m => {
+      if (!m) return false;
+      const memberId = m._id ? m._id.toString() : m.toString();
+      return memberId === currentUserId.toString();
+    });
   };
 
   const getSportIcon = (sport) => {
@@ -221,7 +226,6 @@ export default function TeamsPage() {
     }
   };
 
-  const currentUserId = authState.user?.userId?._id;
   const activeChatTeam = teams.find(t => t._id === activeChatTeamId);
 
   return (
@@ -380,7 +384,8 @@ export default function TeamsPage() {
               {teams.map((team) => {
                 const isMember = isUserMember(team);
                 const isFull = team.members.length >= team.maxSize;
-                const isOwner = team.creatorId?._id === currentUserId || team.creatorId === currentUserId;
+                const creatorIdStr = team.creatorId?._id ? team.creatorId._id.toString() : team.creatorId?.toString();
+                const isOwner = Boolean(currentUserId) && (creatorIdStr === currentUserId.toString());
                 const isPending = pendingTeamIds.some(id => id.toString() === team._id.toString());
                 
                 return (

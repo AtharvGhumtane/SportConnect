@@ -8,7 +8,7 @@ export const getAllTeams = async (req, res) => {
             .populate('creatorId', 'name username email profilePicture')
             .populate('members', 'name username email profilePicture');
 
-        const token = req.headers["x-auth-token"] || req.query.token;
+        const token = req.headers["x-auth-token"] || req.query.token || req.body?.token;
         let pendingTeamIds = [];
 
         if (token) {
@@ -17,7 +17,7 @@ export const getAllTeams = async (req, res) => {
                 const pendingRequests = await Notification.find({
                     senderId: user._id,
                     type: "team_join_request",
-                    $or: [{ read: false }, { isRead: false }]
+                    isRead: false
                 });
                 pendingTeamIds = pendingRequests.map(r => r.relatedId ? r.relatedId.toString() : null).filter(Boolean);
             }
