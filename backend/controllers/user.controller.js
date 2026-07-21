@@ -913,15 +913,12 @@ export const commentPost = async (req, res) => {
   const { token, post_id, commentBody } = req.body;
 
   try {
-    // Validate user
     const user = await User.findOne({ token }).select("_id name");
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Validate post
     const post = await Post.findById(post_id);
     if (!post) return res.status(404).json({ message: "Post not found" });
 
-    // Create and save comment
     const comment = new Comment({
       userId: user._id,
       postId: post_id,
@@ -930,15 +927,22 @@ export const commentPost = async (req, res) => {
 
     await comment.save();
 
-    // Create a notification for the post author (if commenter is not the author)
     if (post.userId && post.userId.toString() !== user._id.toString()) {
         const notification = new Notification({
             userId: post.userId,
-        return res.json({ message: "Comment added successfully" });
-    } catch (error) {
-        console.error("Comment error:", error);
-        return res.status(500).json({ message: error.message });
+            senderId: user._id,
+            type: "comment",
+            relatedId: post._id,
+            message: `${user.name} commented on your post.`
+        });
+        await notification.save();
     }
+
+    return res.json({ message: "Comment added successfully" });
+  } catch (error) {
+    console.error("Comment error:", error);
+    return res.status(500).json({ message: error.message });
+  }
 };
 
 export const getUserProfileAndUserBasedOnUsername = async (req,res) => {

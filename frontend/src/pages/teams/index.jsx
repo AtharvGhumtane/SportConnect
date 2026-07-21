@@ -3,7 +3,7 @@ import UserLayout from '@/layout/UserLayout';
 import DashboardLayout from '@/layout/DashboardLayout';
 import { clientServer, BASE_URL } from '@/config';
 import { useSelector, useDispatch } from 'react-redux';
-import { getAllUsers } from '@/config/redux/action/authAction';
+import { getAllUsers, getAboutUser } from '@/config/redux/action/authAction';
 import styles from './styles.module.css';
 
 export default function TeamsPage() {
@@ -65,9 +65,19 @@ export default function TeamsPage() {
   };
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      dispatch(getAboutUser({ token }));
+    }
     fetchTeams();
     dispatch(getAllUsers());
   }, []);
+
+  useEffect(() => {
+    if (authState.user) {
+      fetchTeams();
+    }
+  }, [authState.user]);
 
   useEffect(() => {
     let interval;
@@ -204,15 +214,24 @@ export default function TeamsPage() {
     }
   };
 
-  const currentUserId = authState.user?.userId?._id || authState.user?._id;
+  const currentUserId = 
+    authState.user?.userId?._id ? authState.user.userId._id.toString() :
+    (typeof authState.user?.userId === 'string' ? authState.user.userId :
+    (authState.user?._id ? authState.user._id.toString() : null));
 
   const isUserMember = (team) => {
-    if (!currentUserId || !team.members) return false;
+    if (!currentUserId || !team.members || !Array.isArray(team.members)) return false;
     return team.members.some(m => {
       if (!m) return false;
-      const memberId = m._id ? m._id.toString() : m.toString();
-      return memberId === currentUserId.toString();
+      const memberId = typeof m === 'object' ? (m._id ? m._id.toString() : m.toString()) : m.toString();
+      return memberId === currentUserId;
     });
+  };
+
+  const isUserOwner = (team) => {
+    if (!currentUserId || !team.creatorId) return false;
+    const creatorIdStr = typeof team.creatorId === 'object' ? (team.creatorId._id ? team.creatorId._id.toString() : team.creatorId.toString()) : team.creatorId.toString();
+    return creatorIdStr === currentUserId;
   };
 
   const getSportIcon = (sport) => {
@@ -384,8 +403,7 @@ export default function TeamsPage() {
               {teams.map((team) => {
                 const isMember = isUserMember(team);
                 const isFull = team.members.length >= team.maxSize;
-                const creatorIdStr = team.creatorId?._id ? team.creatorId._id.toString() : team.creatorId?.toString();
-                const isOwner = Boolean(currentUserId) && (creatorIdStr === currentUserId.toString());
+                const isOwner = isUserOwner(team);
                 const isPending = pendingTeamIds.some(id => id.toString() === team._id.toString());
                 
                 return (

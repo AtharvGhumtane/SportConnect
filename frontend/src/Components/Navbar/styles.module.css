@@ -278,6 +278,51 @@
   margin: 0;
 }
 
+.notifDate {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.notifActionsRow {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.acceptNotifBtn {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.acceptNotifBtn:hover {
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+}
+
+.declineNotifBtn {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.declineNotifBtn:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
 .notificationContentBody span {
   font-size: 0.7rem;
   color: var(--text-muted);

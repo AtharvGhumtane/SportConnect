@@ -121,6 +121,87 @@ export default function Navbar() {
     }
   };
 
+  const handleAcceptTeamInvite = async (e, notif) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem("token");
+      await clientServer.post('/teams/accept_invite', {
+        token,
+        teamId: notif.relatedId,
+        notificationId: notif._id
+      });
+      fetchNotifications();
+      router.push('/teams');
+    } catch (err) {
+      console.error("Accept team invite error:", err);
+    }
+  };
+
+  const handleAcceptTeamJoinRequest = async (e, notif) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem("token");
+      const requesterId = notif.senderId?._id || notif.senderId;
+      await clientServer.post('/teams/accept_join', {
+        token,
+        teamId: notif.relatedId,
+        notificationId: notif._id,
+        requesterId
+      });
+      fetchNotifications();
+      router.push('/teams');
+    } catch (err) {
+      console.error("Accept join request error:", err);
+    }
+  };
+
+  const handleRejectTeamJoinRequest = async (e, notif) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem("token");
+      const requesterId = notif.senderId?._id || notif.senderId;
+      await clientServer.post('/teams/reject_join', {
+        token,
+        teamId: notif.relatedId,
+        notificationId: notif._id,
+        requesterId
+      });
+      fetchNotifications();
+    } catch (err) {
+      console.error("Reject join request error:", err);
+    }
+  };
+
+  const handleAcceptConnectionRequest = async (e, notif) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem("token");
+      await clientServer.post('/user/accept_connection_request', {
+        token,
+        requestId: notif.relatedId,
+        action_type: 'accept'
+      });
+      fetchNotifications();
+    } catch (err) {
+      console.error("Accept connection request error:", err);
+    }
+  };
+
+  const handleDeclineConnectionRequest = async (e, notif) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem("token");
+      await clientServer.post('/user/accept_connection_request', {
+        token,
+        requestId: notif.relatedId,
+        action_type: 'decline'
+      });
+      fetchNotifications();
+    } catch (err) {
+      console.error("Decline connection request error:", err);
+    }
+  };
+
   const handleSupportSubmit = (e) => {
     e.preventDefault();
     if (!supportForm.subject.trim() || !supportForm.message.trim()) return;
@@ -258,15 +339,66 @@ export default function Navbar() {
                         key={notif._id}
                         className={`${styles.notificationItem} ${!notif.isRead ? styles.unreadItem : ''}`}
                         onClick={() => {
-                          if (notif.relatedPostId) router.push('/dashboard');
-                          else if (notif.relatedTeamId) router.push('/teams');
+                          if (notif.type === 'team_invite' || notif.type === 'team_join_request') router.push('/teams');
+                          else if (notif.type === 'connection_request') router.push('/my_connections');
+                          else if (notif.relatedPostId) router.push('/dashboard');
                           setIsNotificationsOpen(false);
                         }}
                       >
-                        <i className={`fa-solid ${notif.type === 'like' ? 'fa-heart' : notif.type === 'comment' ? 'fa-comment' : 'fa-user-plus'}`}></i>
+                        <i className={`fa-solid ${
+                          notif.type === 'like' ? 'fa-heart' :
+                          notif.type === 'comment' ? 'fa-comment' :
+                          notif.type === 'team_invite' || notif.type === 'team_join_request' ? 'fa-users' : 'fa-user-plus'
+                        }`}></i>
                         <div className={styles.notificationContentBody}>
                           <p>{notif.message}</p>
-                          <span>{new Date(notif.createdAt).toLocaleDateString()}</span>
+                          <span className={styles.notifDate}>{new Date(notif.createdAt).toLocaleDateString()}</span>
+                          
+                          {/* Action Buttons for Actionable Notifications */}
+                          {notif.type === 'team_invite' && !notif.isRead && (
+                            <div className={styles.notifActionsRow}>
+                              <button 
+                                className={styles.acceptNotifBtn} 
+                                onClick={(e) => handleAcceptTeamInvite(e, notif)}
+                              >
+                                Accept & Join
+                              </button>
+                            </div>
+                          )}
+
+                          {notif.type === 'team_join_request' && !notif.isRead && (
+                            <div className={styles.notifActionsRow}>
+                              <button 
+                                className={styles.acceptNotifBtn} 
+                                onClick={(e) => handleAcceptTeamJoinRequest(e, notif)}
+                              >
+                                Accept
+                              </button>
+                              <button 
+                                className={styles.declineNotifBtn} 
+                                onClick={(e) => handleRejectTeamJoinRequest(e, notif)}
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          )}
+
+                          {notif.type === 'connection_request' && !notif.isRead && (
+                            <div className={styles.notifActionsRow}>
+                              <button 
+                                className={styles.acceptNotifBtn} 
+                                onClick={(e) => handleAcceptConnectionRequest(e, notif)}
+                              >
+                                Accept
+                              </button>
+                              <button 
+                                className={styles.declineNotifBtn} 
+                                onClick={(e) => handleDeclineConnectionRequest(e, notif)}
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))
