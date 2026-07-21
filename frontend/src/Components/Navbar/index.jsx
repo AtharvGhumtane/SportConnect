@@ -123,6 +123,8 @@ export default function Navbar() {
 
   const handleAcceptTeamInvite = async (e, notif) => {
     e.stopPropagation();
+    setNotifications(prev => prev.map(n => n._id === notif._id ? { ...n, isRead: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
     try {
       const token = localStorage.getItem("token");
       await clientServer.post('/teams/accept_invite', {
@@ -139,6 +141,8 @@ export default function Navbar() {
 
   const handleAcceptTeamJoinRequest = async (e, notif) => {
     e.stopPropagation();
+    setNotifications(prev => prev.map(n => n._id === notif._id ? { ...n, isRead: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
     try {
       const token = localStorage.getItem("token");
       const requesterId = notif.senderId?._id || notif.senderId;
@@ -157,6 +161,8 @@ export default function Navbar() {
 
   const handleRejectTeamJoinRequest = async (e, notif) => {
     e.stopPropagation();
+    setNotifications(prev => prev.map(n => n._id === notif._id ? { ...n, isRead: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
     try {
       const token = localStorage.getItem("token");
       const requesterId = notif.senderId?._id || notif.senderId;
@@ -174,11 +180,14 @@ export default function Navbar() {
 
   const handleAcceptConnectionRequest = async (e, notif) => {
     e.stopPropagation();
+    setNotifications(prev => prev.map(n => n._id === notif._id ? { ...n, isRead: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
     try {
       const token = localStorage.getItem("token");
       await clientServer.post('/user/accept_connection_request', {
         token,
         requestId: notif.relatedId,
+        notificationId: notif._id,
         action_type: 'accept'
       });
       fetchNotifications();
@@ -189,11 +198,14 @@ export default function Navbar() {
 
   const handleDeclineConnectionRequest = async (e, notif) => {
     e.stopPropagation();
+    setNotifications(prev => prev.map(n => n._id === notif._id ? { ...n, isRead: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
     try {
       const token = localStorage.getItem("token");
       await clientServer.post('/user/accept_connection_request', {
         token,
         requestId: notif.relatedId,
+        notificationId: notif._id,
         action_type: 'decline'
       });
       fetchNotifications();

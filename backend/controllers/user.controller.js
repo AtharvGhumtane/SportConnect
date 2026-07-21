@@ -863,17 +863,16 @@ export const whatAreMyConnections = async (req, res) => {
 
 
 export const acceptConnectionRequest = async (req, res) => {
-    const { token, requestId, action_type } = req.body;
+    const { token, requestId, action_type, notificationId } = req.body;
 
     try{
         const user = await User.findOne({ token }); 
         
         if(!user) return res.status(404).json({ message: "User not found" });
 
-        // ✅ FIXED: Find connection request by ID and verify user is the receiver
         const connection = await ConnectionRequest.findOne({ 
             _id: requestId,
-            connectionId: user._id // ✅ Ensure current user is the receiver of the request
+            connectionId: user._id
         });
 
         if(!connection) return res.status(404).json({ message: "Connection request not found" });
@@ -881,7 +880,6 @@ export const acceptConnectionRequest = async (req, res) => {
         if(action_type === "accept") {
             connection.status_accepted = true;
 
-            // Trigger notification back to original requester informing them they've been accepted
             const acceptNoti = new Notification({
                 userId: connection.userId, // original requester
                 senderId: user._id,       // user who accepted
@@ -896,13 +894,17 @@ export const acceptConnectionRequest = async (req, res) => {
 
         await connection.save();
 
+        if (notificationId) {
+            await Notification.updateOne({ _id: notificationId }, { $set: { isRead: true } });
+        } else {
+            await Notification.updateMany({ userId: user._id, relatedId: connection._id }, { $set: { isRead: true } });
+        }
+
         return res.json({ message: "Connection request updated successfully" });
-        
-    }catch(error) {
-        console.error("Accept connection error:", error);
+    } catch(error) {
         return res.status(500).json({ message: error.message });
     }
-}  
+};  
 
 
 // In your user.controller.js - commentPost function:
