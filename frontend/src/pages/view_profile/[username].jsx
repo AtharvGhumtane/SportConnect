@@ -4,7 +4,7 @@ import UserLayout from '@/layout/UserLayout';
 import React, { useEffect, useState } from 'react';
 import styles from "./index.module.css";
 import { getAllPosts } from '@/config/redux/action/postAction';
-import { getConnectionRequest, sendConnectionsRequest, getMyConnectionRequests } from '@/config/redux/action/authAction';
+import { getConnectionRequest, sendConnectionsRequest, getMyConnectionRequests, getAboutUser } from '@/config/redux/action/authAction';
 import { useRouter } from 'next/router';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -26,9 +26,13 @@ export default function ViewProfilePage({userProfile}) {
   });
 
   const getUsersPost = async () => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      dispatch(getAboutUser({ token }));
+    }
     await dispatch(getAllPosts());
-    await dispatch(getConnectionRequest({token:localStorage.getItem("token")}));
-    await dispatch(getMyConnectionRequests({token:localStorage.getItem("token")}));
+    await dispatch(getConnectionRequest({ token }));
+    await dispatch(getMyConnectionRequests({ token }));
   }
 
   useEffect(() => {
@@ -226,25 +230,46 @@ export default function ViewProfilePage({userProfile}) {
                     </div>
                   )}
 
-                  <div className={styles.actionButtons}>
-                    <button
-                      onClick={connectionStatus.canConnect ? handleConnect : undefined}
-                      className={getConnectionButtonClass()}
-                      disabled={!connectionStatus.canConnect}
-                    >
-                      {getConnectionButtonText()}
-                    </button>
-                    
-                    <button
-                      onClick={handleDownloadResume}
-                      disabled={downloadingPdf}
-                      className={styles.downloadBtn}
-                      title="Download Pro Athlete Resume (PDF)"
-                    >
-                      <i className={`fa-solid ${downloadingPdf ? 'fa-spinner fa-spin' : 'fa-file-pdf'}`}></i>
-                      <span>{downloadingPdf ? 'Generating...' : '⚡ Download Pro Resume (PDF)'}</span>
-                    </button>
-                  </div>
+                  {(() => {
+                    const currentSelfUserId = 
+                      authState.user?.userId?._id ? authState.user.userId._id.toString() :
+                      (typeof authState.user?.userId === 'string' ? authState.user.userId :
+                      (authState.user?._id ? authState.user._id.toString() : null));
+
+                    const targetUserId = userProfile?.userId?._id ? userProfile.userId._id.toString() : null;
+                    const isSelfProfile = Boolean(currentSelfUserId && targetUserId && currentSelfUserId === targetUserId);
+
+                    return (
+                      <div className={styles.actionButtons}>
+                        {!isSelfProfile ? (
+                          <button
+                            onClick={connectionStatus.canConnect ? handleConnect : undefined}
+                            className={getConnectionButtonClass()}
+                            disabled={!connectionStatus.canConnect}
+                          >
+                            {getConnectionButtonText()}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => router.push('/profile')}
+                            className={styles.connectBtn}
+                          >
+                            <i className="fa-solid fa-pen-to-square"></i> Edit My Profile
+                          </button>
+                        )}
+                        
+                        <button
+                          onClick={handleDownloadResume}
+                          disabled={downloadingPdf}
+                          className={styles.downloadBtn}
+                          title="Download Pro Athlete Resume (PDF)"
+                        >
+                          <i className={`fa-solid ${downloadingPdf ? 'fa-spinner fa-spin' : 'fa-file-pdf'}`}></i>
+                          <span>{downloadingPdf ? 'Generating...' : '⚡ Download Pro Resume (PDF)'}</span>
+                        </button>
+                      </div>
+                    );
+                  })()}
 
                   {userProfile.bio && (
                     <div className={styles.bioSection}>
