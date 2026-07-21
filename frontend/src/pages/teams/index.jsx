@@ -24,6 +24,8 @@ export default function TeamsPage() {
 
   // Invitations selected user map (teamId -> targetUserId)
   const [inviteUserIdMap, setInviteUserIdMap] = useState({});
+  const [inviteSearchMap, setInviteSearchMap] = useState({});
+  const [activeSearchTeamId, setActiveSearchTeamId] = useState(null);
 
   // Create Team Form States
   const [teamForm, setTeamForm] = useState({
@@ -153,7 +155,7 @@ export default function TeamsPage() {
   const handleSendInvite = async (teamId) => {
     const targetUserId = inviteUserIdMap[teamId];
     if (!targetUserId) {
-      showFeedback("Please select an athlete to invite", "error");
+      showFeedback("Please search and select an athlete to invite", "error");
       return;
     }
 
@@ -166,6 +168,8 @@ export default function TeamsPage() {
       });
       showFeedback(res.data.message || "Invitation sent successfully!", "success");
       setInviteUserIdMap(prev => ({ ...prev, [teamId]: "" }));
+      setInviteSearchMap(prev => ({ ...prev, [teamId]: "" }));
+      setActiveSearchTeamId(null);
     } catch (error) {
       showFeedback(error.response?.data?.message || "Failed to send invitation", "error");
     }
@@ -394,24 +398,66 @@ export default function TeamsPage() {
                         <div className={styles.inviteContainer}>
                           <h4>Invite Athlete</h4>
                           <div className={styles.inviteRow}>
-                            <select 
-                              value={inviteUserIdMap[team._id] || ""} 
-                              onChange={(e) => setInviteUserIdMap(prev => ({ ...prev, [team._id]: e.target.value }))}
-                              className={styles.inviteSelect}
-                            >
-                              <option value="">Select an athlete...</option>
-                              {authState.all_users && authState.all_users
-                                .filter(u => u.userId && u.userId._id !== currentUserId && !team.members.some(m => m._id === u.userId._id))
-                                .map(u => (
-                                  <option key={u.userId._id} value={u.userId._id}>
-                                    {u.userId.name} (@{u.userId.username})
-                                  </option>
-                                ))
-                              }
-                            </select>
+                            <div className={styles.searchWrapper}>
+                              <input 
+                                type="text"
+                                className={styles.inviteInput}
+                                placeholder="Search athlete by name or @username..."
+                                value={inviteSearchMap[team._id] || ""}
+                                onFocus={() => setActiveSearchTeamId(team._id)}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setInviteSearchMap(prev => ({ ...prev, [team._id]: val }));
+                                  setInviteUserIdMap(prev => ({ ...prev, [team._id]: "" }));
+                                  setActiveSearchTeamId(team._id);
+                                }}
+                              />
+                              {activeSearchTeamId === team._id && (inviteSearchMap[team._id] || "").trim().length >= 1 && !inviteUserIdMap[team._id] && (
+                                <ul className={styles.suggestionsList}>
+                                  {(() => {
+                                    const query = (inviteSearchMap[team._id] || "").trim().toLowerCase();
+                                    const matches = authState.all_users
+                                      ?.filter(u => u.userId && u.userId._id !== currentUserId && !team.members.some(m => m._id === u.userId._id))
+                                      .filter(u => 
+                                        u.userId.name?.toLowerCase().includes(query) || 
+                                        u.userId.username?.toLowerCase().includes(query)
+                                      ) || [];
+
+                                    if (matches.length === 0) {
+                                      return <li className={styles.noSuggestions}>No matching athletes found</li>;
+                                    }
+
+                                    return matches.map(u => (
+                                      <li 
+                                        key={u.userId._id} 
+                                        className={styles.suggestionItem}
+                                        onClick={() => {
+                                          setInviteUserIdMap(prev => ({ ...prev, [team._id]: u.userId._id }));
+                                          setInviteSearchMap(prev => ({ ...prev, [team._id]: `${u.userId.name} (@${u.userId.username})` }));
+                                          setActiveSearchTeamId(null);
+                                        }}
+                                      >
+                                        <img 
+                                          src={!u.userId.profilePicture || u.userId.profilePicture === 'default.jpg' 
+                                            ? `${BASE_URL}/uploads/default.jpg` 
+                                            : `${BASE_URL}/uploads/${u.userId.profilePicture}`} 
+                                          alt={u.userId.name} 
+                                          className={styles.suggestionAvatar}
+                                        />
+                                        <div className={styles.suggestionInfo}>
+                                          <span className={styles.suggestionName}>{u.userId.name}</span>
+                                          <span className={styles.suggestionUsername}>@{u.userId.username}</span>
+                                        </div>
+                                      </li>
+                                    ));
+                                  })()}
+                                </ul>
+                              )}
+                            </div>
                             <button 
                               onClick={() => handleSendInvite(team._id)}
                               className={styles.inviteBtn}
+                              disabled={!inviteUserIdMap[team._id]}
                             >
                               Invite
                             </button>
