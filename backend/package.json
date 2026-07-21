@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon server.js",
+    "wipe-db": "node scripts/wipe_demo_data.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
