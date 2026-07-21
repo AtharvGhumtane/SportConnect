@@ -37,10 +37,12 @@ export default function Home() {
       <div className={styles.container}>
         <div className={styles.mainContainer}>
           <div className={styles.mainContainer_left}>
-            <h1>Connect Compete Conquer..</h1>
+            <div className={styles.badgeHeader}>
+              <i className="fa-solid fa-bolt"></i> Next-Gen Sports Ecosystem
+            </div>
+            <h1>Connect. Compete. <span className={styles.highlightGold}>Conquer.</span></h1>
             <p>
-              The Ultimate sports networking platform where athletes, coaches,
-              and sports professionals unite to build their careers and chase their dreams
+              The ultimate athletic ecosystem where athletes, coaches, scouts, and squads unite to organize tournaments, track performance, and elevate careers.
             </p>
 
             <div 
@@ -49,22 +51,20 @@ export default function Home() {
               }} 
               className={styles.buttonJoin}
             >
-              <p>Connect Now</p>
+              <span>Explore Platform</span>
+              <i className="fa-solid fa-arrow-right"></i>
             </div>
           </div>
 
           <div className={styles.mainContainer_right}>
+            <div className={styles.phoenixGlowBg} />
             <Image 
-              src="/images/homemain_connection.png" 
-              alt="Home connection" 
+              src="/images/phoenix_hero.png" 
+              alt="Phoenix Sports Ecosystem" 
               width={700} 
               height={500}
               priority
-              style={{
-                width: '100%',
-                height: 'auto',
-                maxWidth: '700px'
-              }}
+              className={styles.phoenixImageSeamless}
             />
           </div>
         </div>

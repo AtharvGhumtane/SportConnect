@@ -1,34 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAboutUser } from '@/config/redux/action/authAction';
-import { clientServer } from '@/config';
+import { BASE_URL, clientServer } from '@/config';
 import DashboardLayout from '@/layout/DashboardLayout';
 import UserLayout from '@/layout/UserLayout';
+import styles from './index.module.css';
 
 export default function UpdateProfile() {
   const dispatch = useDispatch();
   const authState = useSelector((state) => state.auth);
-  
+
   // Form states
   const [userFormData, setUserFormData] = useState({
     name: '',
     username: '',
     email: ''
   });
-  
+
   const [profileFormData, setProfileFormData] = useState({
     bio: '',
     currentPosition: '',
     pastWork: [],
     education: []
   });
-  
+
   const [profilePicture, setProfilePicture] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState(''); // 'success' or 'error'
+  const [messageType, setMessageType] = useState('');
 
-  // Initialize form data when user data is loaded
   useEffect(() => {
     dispatch(getAboutUser({ token: localStorage.getItem("token") }));
   }, [dispatch]);
@@ -41,7 +42,7 @@ export default function UpdateProfile() {
         username: user.userId.username || '',
         email: user.userId.email || ''
       });
-      
+
       setProfileFormData({
         bio: user.bio || '',
         currentPosition: user.currentPosition || '',
@@ -51,7 +52,6 @@ export default function UpdateProfile() {
     }
   }, [authState.user]);
 
-  // Handle user form changes
   const handleUserFormChange = (e) => {
     setUserFormData({
       ...userFormData,
@@ -59,7 +59,6 @@ export default function UpdateProfile() {
     });
   };
 
-  // Handle profile form changes
   const handleProfileFormChange = (e) => {
     setProfileFormData({
       ...profileFormData,
@@ -67,7 +66,6 @@ export default function UpdateProfile() {
     });
   };
 
-  // Handle work experience changes
   const handleWorkChange = (index, field, value) => {
     const updatedWork = [...profileFormData.pastWork];
     updatedWork[index] = {
@@ -80,7 +78,6 @@ export default function UpdateProfile() {
     });
   };
 
-  // Add new work experience
   const addWorkExperience = () => {
     setProfileFormData({
       ...profileFormData,
@@ -91,7 +88,6 @@ export default function UpdateProfile() {
     });
   };
 
-  // Remove work experience
   const removeWorkExperience = (index) => {
     const updatedWork = profileFormData.pastWork.filter((_, i) => i !== index);
     setProfileFormData({
@@ -100,7 +96,6 @@ export default function UpdateProfile() {
     });
   };
 
-  // Handle education changes
   const handleEducationChange = (index, field, value) => {
     const updatedEducation = [...profileFormData.education];
     updatedEducation[index] = {
@@ -113,7 +108,6 @@ export default function UpdateProfile() {
     });
   };
 
-  // Add new education
   const addEducation = () => {
     setProfileFormData({
       ...profileFormData,
@@ -124,7 +118,6 @@ export default function UpdateProfile() {
     });
   };
 
-  // Remove education
   const removeEducation = (index) => {
     const updatedEducation = profileFormData.education.filter((_, i) => i !== index);
     setProfileFormData({
@@ -133,35 +126,31 @@ export default function UpdateProfile() {
     });
   };
 
-  // Handle profile picture change
   const handleProfilePictureChange = (e) => {
-    setProfilePicture(e.target.files[0]);
+    const file = e.target.files[0];
+    if (file) {
+      setProfilePicture(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
   };
 
-  // Show message helper
   const showMessage = (msg, type) => {
     setMessage(msg);
     setMessageType(type);
     setTimeout(() => {
       setMessage('');
       setMessageType('');
-    }, 5000);
+    }, 4000);
   };
 
-  // Update user basic info
   const updateUserInfo = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
     try {
       const token = localStorage.getItem("token");
-      const response = await clientServer.post('/user_update', {
-        token,
-        ...userFormData
-      });
-      
-      showMessage('User information updated successfully!', 'success');
-      dispatch(getAboutUser({ token })); // Refresh user data
+      await clientServer.post('/user_update', { token, ...userFormData });
+      showMessage('Account basic info updated successfully!', 'success');
+      dispatch(getAboutUser({ token }));
     } catch (error) {
       showMessage(error.response?.data?.message || 'Failed to update user info', 'error');
     } finally {
@@ -169,381 +158,303 @@ export default function UpdateProfile() {
     }
   };
 
-  // Update profile data
   const updateProfileData = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
     try {
       const token = localStorage.getItem("token");
-      const response = await clientServer.post('/update_profile_data', {
-        token,
-        ...profileFormData
-      });
-      
-      showMessage('Profile data updated successfully!', 'success');
-      dispatch(getAboutUser({ token })); // Refresh user data
+      await clientServer.post('/update_profile_data', { token, ...profileFormData });
+      showMessage('Scouting profile details updated successfully!', 'success');
+      dispatch(getAboutUser({ token }));
     } catch (error) {
-      showMessage(error.response?.data?.message || 'Failed to update profile data', 'error');
+      showMessage(error.response?.data?.message || 'Failed to update profile details', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // Update profile picture
   const updateProfilePicture = async (e) => {
     e.preventDefault();
     if (!profilePicture) {
-      showMessage('Please select a profile picture', 'error');
+      showMessage('Please select an image file first', 'error');
       return;
     }
-    
+
     setLoading(true);
-    
     try {
       const token = localStorage.getItem("token");
       const formData = new FormData();
       formData.append('token', token);
       formData.append('profilePicture', profilePicture);
-      
-      const response = await clientServer.post('/update_profile_picture', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+
+      await clientServer.post('/update_profile_picture', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
+
       showMessage('Profile picture updated successfully!', 'success');
       setProfilePicture(null);
-      dispatch(getAboutUser({ token })); // Refresh user data
+      setPreviewUrl(null);
+      dispatch(getAboutUser({ token }));
     } catch (error) {
-      showMessage(error.response?.data?.message || 'Failed to update profile picture', 'error');
+      showMessage(error.response?.data?.message || 'Failed to upload image', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!authState.user) {
+  if (!authState.user || !authState.user.userId) {
     return (
       <UserLayout>
         <DashboardLayout>
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <p>Loading profile data...</p>
+          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2rem', marginBottom: '1rem', color: 'var(--accent-primary)' }}></i>
+            <p>Loading athlete profile...</p>
           </div>
         </DashboardLayout>
       </UserLayout>
     );
   }
 
+  const user = authState.user;
+  const currentAvatarSrc = previewUrl || (
+    !user.userId.profilePicture || user.userId.profilePicture === 'default.jpg'
+      ? `${BASE_URL}/uploads/default.jpg`
+      : `${BASE_URL}/uploads/${user.userId.profilePicture}`
+  );
+
   return (
     <UserLayout>
       <DashboardLayout>
-        <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
-          <h1 style={{ marginBottom: '2rem', textAlign: 'center' }}>Update Profile</h1>
-          
-          {/* Message Display */}
+        <div className={styles.container}>
+          {/* Header */}
+          <div className={styles.pageHeader}>
+            <h1><i className="fa-solid fa-id-card"></i> Athlete Profile Editor</h1>
+            <p>Manage your public scouting profile, achievements, and account details</p>
+          </div>
+
+          {/* Feedback Message */}
           {message && (
-            <div style={{
-              padding: '1rem',
-              marginBottom: '1rem',
-              borderRadius: '8px',
-              backgroundColor: messageType === 'success' ? '#d4edda' : '#f8d7da',
-              color: messageType === 'success' ? '#155724' : '#721c24',
-              border: `1px solid ${messageType === 'success' ? '#c3e6cb' : '#f5c6cb'}`
-            }}>
-              {message}
+            <div className={`${styles.alertMessage} ${styles[messageType]}`}>
+              <i className={`fa-solid ${messageType === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}`}></i>
+              <span>{message}</span>
             </div>
           )}
 
-          {/* Profile Picture Update */}
-          <div style={{ marginBottom: '3rem', padding: '1.5rem', border: '1px solid #ddd', borderRadius: '8px' }}>
-            <h2 style={{ marginBottom: '1rem' }}>Profile Picture</h2>
-            <form onSubmit={updateProfilePicture}>
-              <div style={{ marginBottom: '1rem' }}>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleProfilePictureChange}
-                  style={{ padding: '0.5rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }}
-                />
+          {/* Profile Picture Header Card */}
+          <div className={styles.avatarCard}>
+            <div className={styles.avatarWrapper}>
+              <img
+                src={currentAvatarSrc}
+                alt={user.userId.name}
+                className={styles.avatarImage}
+                onError={(e) => { e.target.src = `${BASE_URL}/uploads/default.jpg`; }}
+              />
+            </div>
+
+            <div className={styles.avatarInfo}>
+              <h2>{user.userId.name}</h2>
+              <p>@{user.userId.username} • Athlete</p>
+
+              <form onSubmit={updateProfilePicture} className={styles.pictureForm}>
+                <label className={styles.fileLabel}>
+                  <i className="fa-solid fa-camera"></i>
+                  <span>{profilePicture ? profilePicture.name : 'Choose Photo'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfilePictureChange}
+                    className={styles.fileInput}
+                  />
+                </label>
+
+                {profilePicture && (
+                  <button type="submit" disabled={loading} className={styles.saveBtn}>
+                    <i className="fa-solid fa-upload"></i>
+                    <span>{loading ? 'Uploading...' : 'Upload'}</span>
+                  </button>
+                )}
+              </form>
+            </div>
+          </div>
+
+          {/* Basic Account Info */}
+          <div className={styles.sectionCard}>
+            <h3 className={styles.sectionTitle}>
+              <i className="fa-solid fa-user"></i> Basic Information
+            </h3>
+
+            <form onSubmit={updateUserInfo} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className={styles.formGrid}>
+                <div className={styles.formGroup}>
+                  <label>Full Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={userFormData.name}
+                    onChange={handleUserFormChange}
+                    required
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>Username</label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={userFormData.username}
+                    onChange={handleUserFormChange}
+                    required
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>Email Address</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={userFormData.email}
+                    onChange={handleUserFormChange}
+                    required
+                  />
+                </div>
               </div>
-              <button
-                type="submit"
-                disabled={loading || !profilePicture}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: loading || !profilePicture ? 'not-allowed' : 'pointer',
-                  opacity: loading || !profilePicture ? 0.6 : 1
-                }}
-              >
-                {loading ? 'Updating...' : 'Update Profile Picture'}
+
+              <button type="submit" disabled={loading} className={styles.saveBtn}>
+                <i className="fa-solid fa-save"></i>
+                <span>{loading ? 'Saving...' : 'Save Basic Info'}</span>
               </button>
             </form>
           </div>
 
-          {/* User Basic Information */}
-          <div style={{ marginBottom: '3rem', padding: '1.5rem', border: '1px solid #ddd', borderRadius: '8px' }}>
-            <h2 style={{ marginBottom: '1rem' }}>Basic Information</h2>
-            <form onSubmit={updateUserInfo}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={userFormData.name}
-                  onChange={handleUserFormChange}
-                  style={{ padding: '0.75rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }}
-                  required
-                />
-              </div>
-              
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Username</label>
-                <input
-                  type="text"
-                  name="username"
-                  value={userFormData.username}
-                  onChange={handleUserFormChange}
-                  style={{ padding: '0.75rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }}
-                  required
-                />
-              </div>
-              
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={userFormData.email}
-                  onChange={handleUserFormChange}
-                  style={{ padding: '0.75rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }}
-                  required
-                />
-              </div>
-              
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.6 : 1
-                }}
-              >
-                {loading ? 'Updating...' : 'Update Basic Info'}
-              </button>
-            </form>
-          </div>
+          {/* Profile Details (Bio & Position) */}
+          <div className={styles.sectionCard}>
+            <h3 className={styles.sectionTitle}>
+              <i className="fa-solid fa-medal"></i> Athletic Bio & Position
+            </h3>
 
-          {/* Profile Data */}
-          <div style={{ marginBottom: '3rem', padding: '1.5rem', border: '1px solid #ddd', borderRadius: '8px' }}>
-            <h2 style={{ marginBottom: '1rem' }}>Profile Details</h2>
-            <form onSubmit={updateProfileData}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Bio</label>
-                <textarea
-                  name="bio"
-                  value={profileFormData.bio}
-                  onChange={handleProfileFormChange}
-                  rows="4"
-                  style={{ padding: '0.75rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical' }}
-                  placeholder="Tell us about yourself..."
-                />
-              </div>
-              
-              <div style={{ marginBottom: '2rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Current Position</label>
-                <input
-                  type="text"
-                  name="currentPosition"
-                  value={profileFormData.currentPosition}
-                  onChange={handleProfileFormChange}
-                  style={{ padding: '0.75rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }}
-                  placeholder="Your current job title or position"
-                />
-              </div>
-
-              {/* Work Experience Section */}
-              <div style={{ marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3>Work Experience</h3>
-                  <button
-                    type="button"
-                    onClick={addWorkExperience}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      backgroundColor: '#17a2b8',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Add Work Experience
-                  </button>
+            <form onSubmit={updateProfileData} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className={styles.formGrid}>
+                <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                  <label>Bio / Quote</label>
+                  <textarea
+                    name="bio"
+                    rows="3"
+                    placeholder="Tell coaches and scouts about your play style..."
+                    value={profileFormData.bio}
+                    onChange={handleProfileFormChange}
+                  />
                 </div>
-                
-                {profileFormData.pastWork.map((work, index) => (
-                  <div key={index} style={{ 
-                    marginBottom: '1rem', 
-                    padding: '1rem', 
-                    border: '1px solid #eee', 
-                    borderRadius: '4px',
-                    backgroundColor: '#f9f9f9'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                      <h4>Work Experience {index + 1}</h4>
-                      <button
-                        type="button"
-                        onClick={() => removeWorkExperience(index)}
-                        style={{
-                          padding: '0.25rem 0.5rem',
-                          backgroundColor: '#dc3545',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '0.8rem'
-                        }}
-                      >
-                        Remove
+
+                <div className={styles.formGroup}>
+                  <label>Primary Role / Position</label>
+                  <input
+                    type="text"
+                    name="currentPosition"
+                    placeholder="e.g. Point Guard / Striker / Head Coach"
+                    value={profileFormData.currentPosition}
+                    onChange={handleProfileFormChange}
+                  />
+                </div>
+              </div>
+
+              {/* Past Work / Teams */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', uppercase: true }}>
+                  Past Squads & Organizations
+                </label>
+
+                {profileFormData.pastWork.map((work, idx) => (
+                  <div key={idx} className={styles.itemCard}>
+                    <div className={styles.itemHeader}>
+                      <h4>Squad #{idx + 1}</h4>
+                      <button type="button" onClick={() => removeWorkExperience(idx)} className={styles.removeBtn}>
+                        <i className="fa-solid fa-trash"></i>
                       </button>
                     </div>
-                    
-                    <div style={{ marginBottom: '0.5rem' }}>
-                      <input
-                        type="text"
-                        placeholder="Company"
-                        value={work.company || ''}
-                        onChange={(e) => handleWorkChange(index, 'company', e.target.value)}
-                        style={{ padding: '0.5rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }}
-                      />
-                    </div>
-                    
-                    <div style={{ marginBottom: '0.5rem' }}>
-                      <input
-                        type="text"
-                        placeholder="Position"
-                        value={work.position || ''}
-                        onChange={(e) => handleWorkChange(index, 'position', e.target.value)}
-                        style={{ padding: '0.5rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }}
-                      />
-                    </div>
-                    
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Years (e.g., 2020-2023)"
-                        value={work.years || ''}
-                        onChange={(e) => handleWorkChange(index, 'years', e.target.value)}
-                        style={{ padding: '0.5rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }}
-                      />
+                    <div className={styles.formGrid}>
+                      <div className={styles.formGroup}>
+                        <label>Organization / Team</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Red Bulls FC"
+                          value={work.company || ''}
+                          onChange={(e) => handleWorkChange(idx, 'company', e.target.value)}
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Position / Role</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Captain / Midfielder"
+                          value={work.position || ''}
+                          onChange={(e) => handleWorkChange(idx, 'position', e.target.value)}
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Years Active</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 2022 - 2024"
+                          value={work.years || ''}
+                          onChange={(e) => handleWorkChange(idx, 'years', e.target.value)}
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
+
+                <button type="button" onClick={addWorkExperience} className={styles.addBtn}>
+                  <i className="fa-solid fa-plus"></i>
+                  <span>Add Squad History</span>
+                </button>
               </div>
 
-              {/* Education Section */}
-              <div style={{ marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3>Education</h3>
-                  <button
-                    type="button"
-                    onClick={addEducation}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      backgroundColor: '#17a2b8',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Add Education
-                  </button>
-                </div>
-                
-                {profileFormData.education.map((edu, index) => (
-                  <div key={index} style={{ 
-                    marginBottom: '1rem', 
-                    padding: '1rem', 
-                    border: '1px solid #eee', 
-                    borderRadius: '4px',
-                    backgroundColor: '#f9f9f9'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                      <h4>Education {index + 1}</h4>
-                      <button
-                        type="button"
-                        onClick={() => removeEducation(index)}
-                        style={{
-                          padding: '0.25rem 0.5rem',
-                          backgroundColor: '#dc3545',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '0.8rem'
-                        }}
-                      >
-                        Remove
+              {/* Education / Training */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', uppercase: true }}>
+                  Sports Academies & Education
+                </label>
+
+                {profileFormData.education.map((edu, idx) => (
+                  <div key={idx} className={styles.itemCard}>
+                    <div className={styles.itemHeader}>
+                      <h4>Academy / School #{idx + 1}</h4>
+                      <button type="button" onClick={() => removeEducation(idx)} className={styles.removeBtn}>
+                        <i className="fa-solid fa-trash"></i>
                       </button>
                     </div>
-                    
-                    <div style={{ marginBottom: '0.5rem' }}>
-                      <input
-                        type="text"
-                        placeholder="School/University"
-                        value={edu.school || ''}
-                        onChange={(e) => handleEducationChange(index, 'school', e.target.value)}
-                        style={{ padding: '0.5rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }}
-                      />
-                    </div>
-                    
-                    <div style={{ marginBottom: '0.5rem' }}>
-                      <input
-                        type="text"
-                        placeholder="Degree"
-                        value={edu.degree || ''}
-                        onChange={(e) => handleEducationChange(index, 'degree', e.target.value)}
-                        style={{ padding: '0.5rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }}
-                      />
-                    </div>
-                    
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Field of Study"
-                        value={edu.fieldOfStudy || ''}
-                        onChange={(e) => handleEducationChange(index, 'fieldOfStudy', e.target.value)}
-                        style={{ padding: '0.5rem', width: '100%', border: '1px solid #ccc', borderRadius: '4px' }}
-                      />
+                    <div className={styles.formGrid}>
+                      <div className={styles.formGroup}>
+                        <label>Academy / University</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. National Sports Institute"
+                          value={edu.school || ''}
+                          onChange={(e) => handleEducationChange(idx, 'school', e.target.value)}
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Degree / Certificate</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Certified Athletic Trainer"
+                          value={edu.degree || ''}
+                          onChange={(e) => handleEducationChange(idx, 'degree', e.target.value)}
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
+
+                <button type="button" onClick={addEducation} className={styles.addBtn}>
+                  <i className="fa-solid fa-plus"></i>
+                  <span>Add Education / Certification</span>
+                </button>
               </div>
-              
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.6 : 1
-                }}
-              >
-                {loading ? 'Updating...' : 'Update Profile Details'}
+
+              <button type="submit" disabled={loading} className={styles.saveBtn} style={{ marginTop: '0.5rem' }}>
+                <i className="fa-solid fa-save"></i>
+                <span>{loading ? 'Saving...' : 'Save Profile Details'}</span>
               </button>
             </form>
           </div>

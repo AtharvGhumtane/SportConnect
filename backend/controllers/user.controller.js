@@ -13,6 +13,9 @@ import mongoose from "mongoose";
 import { fileURLToPath } from "url";
 import Notification from "../models/notification.model.js";
 import Team from "../models/teams.model.js";
+import OTP from "../models/otp.model.js";
+import { sendMail } from "../config/mailer.js";
+import { OAuth2Client } from "google-auth-library";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,25 +67,160 @@ const convertUserDataTOPDF = async (userData) => {
 
 
 
+// Helper function to generate unique username for OAuth signups
+const generateUniqueUsername = async (baseName) => {
+    let cleanBase = baseName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!cleanBase) cleanBase = "athlete";
+    
+    let isUnique = false;
+    let username = "";
+    
+    while (!isUnique) {
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        username = `${cleanBase}${randomNum}`;
+        const existing = await User.findOne({ username });
+        if (!existing) {
+            isUnique = true;
+        }
+    }
+    return username;
+};
+
+// ── SEND OTP CONTROLLER (Signup & Password Reset) ────────────────
+export const sendOtp = async (req, res) => {
+    try {
+        const { email, type } = req.body; // type: "registration" | "password_reset"
+
+        if (!email || !type) {
+            return res.status(400).json({ message: "Email and request type are required" });
+        }
+
+        if (!["registration", "password_reset"].includes(type)) {
+            return res.status(400).json({ message: "Invalid request type" });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // Account existence checks based on type
+        const existingUser = await User.findOne({ email: normalizedEmail });
+        if (type === "registration" && existingUser) {
+            return res.status(400).json({ message: "Email is already registered. Please sign in instead." });
+        }
+        if (type === "password_reset" && !existingUser) {
+            return res.status(404).json({ message: "No account found with this email address." });
+        }
+
+        // Rate Limiting: Max 3 OTPs per email per 1 hour (3600000 ms)
+        const oneHourAgo = new Date(Date.now() - 3600000);
+        const recentOtpsCount = await OTP.countDocuments({
+            email: normalizedEmail,
+            createdAt: { $gte: oneHourAgo }
+        });
+
+        if (recentOtpsCount >= 3) {
+            return res.status(429).json({
+                message: "Rate limit exceeded. You can only request 3 OTP codes per hour. Please wait before trying again."
+            });
+        }
+
+        // Remove any previous active OTPs for this email and type
+        await OTP.deleteMany({ email: normalizedEmail, type });
+
+        // Generate 6-digit random code & hash with bcrypt
+        const rawOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpHash = await bcrypt.hash(rawOtp, 10);
+
+        // Save hashed OTP in DB (expires in 5 minutes via Mongoose TTL)
+        await OTP.create({
+            email: normalizedEmail,
+            otpHash,
+            type,
+            attempts: 0
+        });
+
+        // Send Email via Nodemailer (or log to console if dev fallback)
+        const subject = type === "registration"
+            ? "Your SportConnect Email Verification Code"
+            : "SportConnect Password Reset Code";
+
+        const htmlBody = `
+            <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #0f1923; color: #e2e8f0; border-radius: 12px;">
+                <h2 style="color: #10b981;">SportConnect Authentication Code</h2>
+                <p>Use the following 6-digit code to complete your ${type === 'registration' ? 'registration' : 'password reset'}:</p>
+                <div style="font-size: 28px; font-weight: 800; letter-spacing: 4px; color: #10b981; margin: 20px 0; background: rgba(16,185,129,0.1); padding: 12px; display: inline-block; border-radius: 8px;">
+                    ${rawOtp}
+                </div>
+                <p style="color: #94a3b8; font-size: 13px;">This code is valid for <strong>5 minutes</strong> and can only be used once.</p>
+            </div>
+        `;
+
+        await sendMail({
+            to: normalizedEmail,
+            subject,
+            html: htmlBody,
+            otp: rawOtp
+        });
+
+        return res.status(200).json({ message: "Verification code sent to your email!" });
+    } catch (error) {
+        console.error("Send OTP error:", error);
+        return res.status(500).json({ message: error.message || "Failed to send verification code" });
+    }
+};
+
+// ── REGISTER WITH OTP CONTROLLER ────────────────
 export const register = async (req, res) => {
-    try{
-        const { name, email, password ,username } = req.body;
+    try {
+        const { name, email, password, username, otp } = req.body;
 
-        if(!name || !email || !password || !username)  return res.status(400).json({message: "Please fill all the fields"}); 
+        if (!name || !email || !password || !username || !otp) {
+            return res.status(400).json({ message: "Please fill all fields and enter the verification code" });
+        }
 
-        const userByEmail = await User.findOne({ email });
-        if(userByEmail) return res.status(400).json({message: "Email already registered"});
+        const normalizedEmail = email.toLowerCase().trim();
+        const normalizedUsername = username.trim();
 
-        const userByUsername = await User.findOne({ username });
-        if(userByUsername) return res.status(400).json({message: "Username already taken"});
-        
+        // 1. Verify User/Username uniqueness
+        const userByEmail = await User.findOne({ email: normalizedEmail });
+        if (userByEmail) return res.status(400).json({ message: "Email already registered" });
+
+        const userByUsername = await User.findOne({ username: normalizedUsername });
+        if (userByUsername) return res.status(400).json({ message: "Username already taken" });
+
+        // 2. Fetch active OTP record
+        const otpDoc = await OTP.findOne({ email: normalizedEmail, type: "registration" });
+        if (!otpDoc) {
+            return res.status(400).json({ message: "No active verification code found. Please request a new code." });
+        }
+
+        // 3. Brute force check: max 5 failed attempts allowed
+        if (otpDoc.attempts >= 5) {
+            await OTP.deleteOne({ _id: otpDoc._id });
+            return res.status(400).json({ message: "Too many failed attempts. This verification code has been invalidated." });
+        }
+
+        // 4. Compare bcrypt hash
+        const isOtpValid = await bcrypt.compare(otp.trim(), otpDoc.otpHash);
+        if (!isOtpValid) {
+            otpDoc.attempts += 1;
+            await otpDoc.save();
+            return res.status(400).json({ message: `Invalid verification code. (${5 - otpDoc.attempts} attempts remaining)` });
+        }
+
+        // 5. Single-use enforcement: Delete OTP document immediately upon success
+        await OTP.deleteOne({ _id: otpDoc._id });
+
+        // 6. Create User & Profile
         const hashedPassword = await bcrypt.hash(password, 10);
+        const sessionToken = crypto.randomBytes(32).toString("hex");
 
         const newUser = new User({
-            name,
-            email,
+            name: name.trim(),
+            email: normalizedEmail,
             password: hashedPassword,
-            username,
+            username: normalizedUsername,
+            token: sessionToken,
+            provider: "email"
         });
 
         await newUser.save();
@@ -91,17 +229,232 @@ export const register = async (req, res) => {
             userId: newUser._id,
         });
 
-        // FIX: Save the profile to database
         await profile.save();
 
-        return res.status(201).json({message: "User registered successfully"});
-    }catch(error){
-        console.error("Register error:", error);
-        return res.status(500).json({
-            message: "Internal server error",
+        return res.status(201).json({
+            message: "User registered successfully",
+            token: sessionToken
         });
+    } catch (error) {
+        console.error("Register error:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
-}
+};
+
+// ── RESET PASSWORD WITH OTP CONTROLLER ────────────────
+export const resetPassword = async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({ message: "Email, verification code, and new password are required" });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+
+        const user = await User.findOne({ email: normalizedEmail });
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        // Fetch active OTP record
+        const otpDoc = await OTP.findOne({ email: normalizedEmail, type: "password_reset" });
+        if (!otpDoc) {
+            return res.status(400).json({ message: "No active verification code found. Please request a new code." });
+        }
+
+        // Brute force check: max 5 failed attempts
+        if (otpDoc.attempts >= 5) {
+            await OTP.deleteOne({ _id: otpDoc._id });
+            return res.status(400).json({ message: "Too many failed attempts. Verification code invalidated." });
+        }
+
+        // Compare bcrypt hash
+        const isOtpValid = await bcrypt.compare(otp.trim(), otpDoc.otpHash);
+        if (!isOtpValid) {
+            otpDoc.attempts += 1;
+            await otpDoc.save();
+            return res.status(400).json({ message: `Invalid verification code. (${5 - otpDoc.attempts} attempts remaining)` });
+        }
+
+        // Single-use deletion
+        await OTP.deleteOne({ _id: otpDoc._id });
+
+        // Hash new password and update user
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        await user.save();
+
+        return res.status(200).json({ message: "Password reset successfully! You can now log in with your new password." });
+    } catch (error) {
+        console.error("Reset password error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// ── GOOGLE OAUTH CONTROLLER (Server-Side ID Token Verification) ────────────────
+export const googleOauth = async (req, res) => {
+    try {
+        const { idToken } = req.body;
+
+        if (!idToken) {
+            return res.status(400).json({ message: "Google ID Token is required" });
+        }
+
+        // Verify ID token server-side using google-auth-library
+        const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+        let payload;
+
+        try {
+            const ticket = await client.verifyIdToken({
+                idToken,
+                audience: process.env.GOOGLE_CLIENT_ID || undefined,
+            });
+            payload = ticket.getPayload();
+        } catch (authError) {
+            console.error("Google ID Token Verification Failed:", authError.message);
+            return res.status(401).json({ message: "Google authentication failed. Invalid ID Token." });
+        }
+
+        const { email, name, picture } = payload;
+        if (!email) {
+            return res.status(400).json({ message: "No email returned from Google account" });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+        const sessionToken = crypto.randomBytes(32).toString("hex");
+
+        let user = await User.findOne({ email: normalizedEmail });
+
+        if (user) {
+            // Existing user -> Account Linking
+            user.token = sessionToken;
+            if (!user.provider) user.provider = "google";
+            await user.save();
+        } else {
+            // New user -> Auto-generate unique username & create User + Profile
+            const username = await generateUniqueUsername(email.split("@")[0] || name || "athlete");
+            user = new User({
+                name: name || "Athlete",
+                email: normalizedEmail,
+                username,
+                provider: "google",
+                token: sessionToken,
+            });
+            await user.save();
+
+            const profile = new Profile({
+                userId: user._id,
+            });
+            await profile.save();
+        }
+
+        return res.status(200).json({
+            message: "Google sign-in successful",
+            token: sessionToken
+        });
+    } catch (error) {
+        console.error("Google OAuth error:", error);
+        return res.status(500).json({ message: "Google authentication server error" });
+    }
+};
+
+// ── GITHUB OAUTH CONTROLLER (Code-to-Token Exchange & Primary Email Filter) ────────────────
+export const githubOauth = async (req, res) => {
+    try {
+        const { code } = req.body;
+
+        if (!code) {
+            return res.status(400).json({ message: "GitHub authorization code is required" });
+        }
+
+        // 1. Exchange OAuth code for GitHub access token
+        const tokenResponse = await fetch("https://github.com/login/oauth/access_token", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            body: JSON.stringify({
+                client_id: process.env.GITHUB_CLIENT_ID,
+                client_secret: process.env.GITHUB_CLIENT_SECRET,
+                code,
+            }),
+        });
+
+        const tokenData = await tokenResponse.json();
+        if (tokenData.error || !tokenData.access_token) {
+            return res.status(401).json({ message: tokenData.error_description || "Failed to exchange GitHub authorization code" });
+        }
+
+        const accessToken = tokenData.access_token;
+
+        // 2. Fetch GitHub emails array
+        const emailsResponse = await fetch("https://api.github.com/user/emails", {
+            headers: {
+                "Authorization": `token ${accessToken}`,
+                "User-Agent": "SportConnect-App",
+            },
+        });
+
+        const emails = await emailsResponse.json();
+        if (!Array.isArray(emails)) {
+            return res.status(400).json({ message: "Failed to fetch email address from GitHub profile" });
+        }
+
+        // 3. Filter primary && verified email
+        const targetEmailObj = emails.find(e => e.primary && e.verified) || emails.find(e => e.verified);
+
+        if (!targetEmailObj || !targetEmailObj.email) {
+            return res.status(400).json({ message: "No verified email address found on GitHub account" });
+        }
+
+        const normalizedEmail = targetEmailObj.email.toLowerCase().trim();
+
+        // 4. Fetch user profile for name/avatar
+        const profileResponse = await fetch("https://api.github.com/user", {
+            headers: {
+                "Authorization": `token ${accessToken}`,
+                "User-Agent": "SportConnect-App",
+            },
+        });
+        const profileData = await profileResponse.json();
+
+        const name = profileData.name || profileData.login || "Athlete";
+        const sessionToken = crypto.randomBytes(32).toString("hex");
+
+        let user = await User.findOne({ email: normalizedEmail });
+
+        if (user) {
+            // Account Linking
+            user.token = sessionToken;
+            if (!user.provider) user.provider = "github";
+            await user.save();
+        } else {
+            // New User Registration with unique collision-checked username
+            const username = await generateUniqueUsername(profileData.login || email.split("@")[0] || "athlete");
+            user = new User({
+                name,
+                email: normalizedEmail,
+                username,
+                provider: "github",
+                token: sessionToken,
+            });
+            await user.save();
+
+            const profile = new Profile({
+                userId: user._id,
+            });
+            await profile.save();
+        }
+
+        return res.status(200).json({
+            message: "GitHub sign-in successful",
+            token: sessionToken
+        });
+    } catch (error) {
+        console.error("GitHub OAuth error:", error);
+        return res.status(500).json({ message: "GitHub authentication server error" });
+    }
+};
 
 export const login = async (req, res) => {
     try{

@@ -20,6 +20,7 @@ import { uploadProfilePicture } from '../controllers/user.controller.js';
 import { updateUserProfile } from '../controllers/user.controller.js';
 import { getUserAndProfile } from '../controllers/user.controller.js';
 import { updateProfileData } from '../controllers/user.controller.js';
+import { sendOtp, resetPassword, googleOauth, githubOauth } from '../controllers/user.controller.js';
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -46,6 +47,10 @@ router.route('/update_profile_picture').post(upload.single('profilePicture'),upl
 
 router.route('/register').post(register);
 router.route('/login').post(login);
+router.route('/auth/send_otp').post(sendOtp);
+router.route('/auth/reset_password').post(resetPassword);
+router.route('/auth/google_oauth').post(googleOauth);
+router.route('/auth/github_oauth').post(githubOauth);
 router.route('/user_update').post(updateUserProfile);
 router.route('/get_user_and_profile').get(getUserAndProfile);
 router.route('/update_profile_data').post(updateProfileData);

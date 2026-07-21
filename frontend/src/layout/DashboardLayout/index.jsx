@@ -5,12 +5,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setTokenIsThere } from '../../config/redux/reducer/authReducer';
 import { BASE_URL, clientServer } from '@/config';
 
-export default function DashboardLayout({children}) {
+export default function DashboardLayout({ children }) {
   const router = useRouter();
-  const dispatch = useDispatch();  
+  const dispatch = useDispatch();
   const authState = useSelector((state) => state.auth);
 
   const [trendingAthletes, setTrendingAthletes] = useState([]);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [mySquads, setMySquads] = useState([]);
   const [userStats, setUserStats] = useState({
     connections: 0,
     teams: 0,
@@ -30,16 +32,29 @@ export default function DashboardLayout({children}) {
       // 2. Fetch trending athletes
       const trendingRes = await clientServer.get('/user/trending_athletes');
       const allTrending = trendingRes.data.trending || [];
-      
-      // Filter out self from trending list
+
       const selfUserId = authState.user?.userId?._id;
-      const filteredTrending = selfUserId 
+      const filteredTrending = selfUserId
         ? allTrending.filter(p => p.userId?._id !== selfUserId)
         : allTrending;
-      
+
       setTrendingAthletes(filteredTrending);
+
+      // 3. Fetch dynamic upcoming events
+      const eventsRes = await clientServer.get('/events');
+      const allEvents = eventsRes.data.events || [];
+      
+      // Sort upcoming events by startDate ascending (closest upcoming dates first)
+      const sortedEvents = [...allEvents].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+      setUpcomingEvents(sortedEvents.slice(0, 3)); // Take top 3 closest upcoming events
+
+      // 4. Fetch user's active squads for left sidebar
+      if (selfUserId) {
+        const teamsRes = await clientServer.get(`/teams/user/${selfUserId}`);
+        setMySquads(teamsRes.data.teams || []);
+      }
     } catch (err) {
-      console.error("DashboardLayout fetch stats/trending error:", err);
+      console.error("DashboardLayout fetch error:", err);
     }
   };
 
@@ -47,7 +62,7 @@ export default function DashboardLayout({children}) {
     const token = localStorage.getItem("token");
     if (!token) {
       router.push("/login");
-    } else{
+    } else {
       dispatch(setTokenIsThere());
     }
   }, []);
@@ -64,6 +79,25 @@ export default function DashboardLayout({children}) {
     }
   }, [authState.user, authState.loggedIn]);
 
+  const formatEventDate = (dateString) => {
+    if (!dateString) return { day: "--", month: "---" };
+    const d = new Date(dateString);
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = d.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+    return { day, month };
+  };
+
+  const getSportIcon = (sport) => {
+    switch (sport) {
+      case 'Football': return 'fa-futbol';
+      case 'Basketball': return 'fa-basketball-ball';
+      case 'Tennis': return 'fa-tennis-ball';
+      case 'Cricket': return 'fa-baseball';
+      case 'Fitness': return 'fa-dumbbell';
+      default: return 'fa-users';
+    }
+  };
+
   return (
     <div className={styles.layoutWrapper}>
       <div className={styles.container}>
@@ -74,7 +108,7 @@ export default function DashboardLayout({children}) {
               {/* Quick Actions */}
               <div className={styles.quickActions}>
                 <h3>Quick Actions</h3>
-                <div 
+                <div
                   onClick={() => router.push("/dashboard")}
                   className={`${styles.sideBarOption} ${router.pathname === '/dashboard' ? styles.active : ''}`}
                 >
@@ -87,7 +121,7 @@ export default function DashboardLayout({children}) {
                   </div>
                 </div>
 
-                <div 
+                <div
                   onClick={() => router.push("/discover")}
                   className={`${styles.sideBarOption} ${router.pathname === '/discover' ? styles.active : ''}`}
                 >
@@ -100,7 +134,7 @@ export default function DashboardLayout({children}) {
                   </div>
                 </div>
 
-                <div 
+                <div
                   onClick={() => router.push("/my_connections")}
                   className={`${styles.sideBarOption} ${router.pathname === '/my_connections' ? styles.active : ''}`}
                 >
@@ -113,20 +147,7 @@ export default function DashboardLayout({children}) {
                   </div>
                 </div>
 
-                <div 
-                  onClick={() => router.push("/calendar")}
-                  className={`${styles.sideBarOption} ${router.pathname === '/calendar' ? styles.active : ''}`}
-                >
-                  <div className={styles.iconWrapper}>
-                    <i className="fa-solid fa-calendar-check"></i>
-                  </div>
-                  <div className={styles.optionContent}>
-                    <span>Events</span>
-                    <small>Matches & tournaments</small>
-                  </div>
-                </div>
-
-                <div 
+                <div
                   onClick={() => router.push("/teams")}
                   className={`${styles.sideBarOption} ${router.pathname === '/teams' ? styles.active : ''}`}
                 >
@@ -139,7 +160,7 @@ export default function DashboardLayout({children}) {
                   </div>
                 </div>
 
-                <div 
+                <div
                   onClick={() => router.push("/events")}
                   className={`${styles.sideBarOption} ${router.pathname.startsWith('/events') ? styles.active : ''}`}
                 >
@@ -153,39 +174,45 @@ export default function DashboardLayout({children}) {
                 </div>
               </div>
 
-              {/* Sports Categories */}
+              {/* Dynamic My Squads Section */}
               <div className={styles.sportsCategories}>
-                <h3>Sports</h3>
+                <h3>My Squads ({mySquads.length})</h3>
                 <div className={styles.sportsList}>
-                  <div className={styles.sportItem}>
-                    <i className="fa-solid fa-futbol"></i>
-                    <span>Football</span>
-                  </div>
-                  <div className={styles.sportItem}>
-                    <i className="fa-solid fa-basketball-ball"></i>
-                    <span>Basketball</span>
-                  </div>
-                  <div className={styles.sportItem}>
-                    <i className="fa-solid fa-tennis-ball"></i>
-                    <span>Tennis</span>
-                  </div>
-                  <div className={styles.sportItem}>
-                    <i className="fa-solid fa-dumbbell"></i>
-                    <span>Fitness</span>
-                  </div>
+                  {mySquads.length > 0 ? (
+                    mySquads.slice(0, 4).map((team) => (
+                      <div
+                        key={team._id}
+                        className={styles.sportItem}
+                        onClick={() => router.push("/teams")}
+                        title={team.name}
+                      >
+                        <i className={`fa-solid ${getSportIcon(team.sport)}`}></i>
+                        <span>{team.name}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div
+                      className={styles.sportItem}
+                      onClick={() => router.push("/teams")}
+                      style={{ cursor: "pointer", color: "var(--accent-primary)" }}
+                    >
+                      <i className="fa-solid fa-plus"></i>
+                      <span>Join / Create Squad</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-           
-          {/* Main Feed Container - FIXED: Added scrollable wrapper */}
+
+          {/* Main Feed Container */}
           <div className={styles.homeContainer_feedContainer}>
             <div className={styles.feedContent}>
               {children}
             </div>
           </div>
 
-          {/* Enhanced Right Sidebar - FIXED: Added scrollable wrapper */}
+          {/* Enhanced Right Sidebar */}
           <div className={styles.homeContainer_extraContainer}>
             <div className={styles.extraContent}>
               {/* Trending Athletes */}
@@ -194,22 +221,22 @@ export default function DashboardLayout({children}) {
                   <i className="fa-solid fa-fire"></i>
                   <h3>Trending Athletes</h3>
                 </div>
-                
+
                 {trendingAthletes.length > 0 ? (
                   trendingAthletes.map((profile) => (
-                    <div 
-                      key={profile._id} 
+                    <div
+                      key={profile._id}
                       className={styles.extraContainer__profile}
                       onClick={() => router.push(`/view_profile/${profile.userId.username}`)}
                       style={{ cursor: "pointer" }}
                     >
                       <div className={styles.profileAvatar}>
-                        <img 
+                        <img
                           src={
                             !profile.userId.profilePicture || profile.userId.profilePicture === 'default.jpg'
                               ? `${BASE_URL}/uploads/default.jpg`
                               : `${BASE_URL}/uploads/${profile.userId.profilePicture}`
-                          } 
+                          }
                           alt={profile.userId.name}
                           style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
                         />
@@ -227,45 +254,42 @@ export default function DashboardLayout({children}) {
                 )}
               </div>
 
-              {/* Upcoming Events */}
+              {/* Dynamic Upcoming Events Section */}
               <div className={styles.upcomingEvents}>
                 <div className={styles.sectionHeader}>
                   <i className="fa-solid fa-calendar"></i>
                   <h3>Upcoming Events</h3>
                 </div>
-                
-                <div className={styles.eventItem}>
-                  <div className={styles.eventDate}>
-                    <span className={styles.day}>25</span>
-                    <span className={styles.month}>Dec</span>
-                  </div>
-                  <div className={styles.eventDetails}>
-                    <p>City Football Championship</p>
-                    <span>Mumbai Sports Complex</span>
-                  </div>
-                </div>
 
-                <div className={styles.eventItem}>
-                  <div className={styles.eventDate}>
-                    <span className={styles.day}>28</span>
-                    <span className={styles.month}>Dec</span>
+                {upcomingEvents.length > 0 ? (
+                  upcomingEvents.map((ev) => {
+                    const { day, month } = formatEventDate(ev.startDate);
+                    return (
+                      <div
+                        key={ev._id}
+                        className={styles.eventItem}
+                        onClick={() => router.push(`/events/${ev._id}`)}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <div className={styles.eventDate}>
+                          <span className={styles.day}>{day}</span>
+                          <span className={styles.month}>{month}</span>
+                        </div>
+                        <div className={styles.eventDetails}>
+                          <p>{ev.name}</p>
+                          <span>{ev.sports?.[0]?.sportName || "Tournament"} • @{ev.hostId?.username || "Host"}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div
+                    onClick={() => router.push("/events")}
+                    style={{ padding: "0.5rem 0", fontSize: "0.8rem", color: "var(--text-muted)", cursor: "pointer", textAlign: "center" }}
+                  >
+                    🏆 No upcoming events. <strong style={{ color: "var(--accent-primary)" }}>Host one now!</strong>
                   </div>
-                  <div className={styles.eventDetails}>
-                    <p>Basketball League Finals</p>
-                    <span>Sports Arena</span>
-                  </div>
-                </div>
-
-                <div className={styles.eventItem}>
-                  <div className={styles.eventDate}>
-                    <span className={styles.day}>02</span>
-                    <span className={styles.month}>Jan</span>
-                  </div>
-                  <div className={styles.eventDetails}>
-                    <p>Tennis Open Tournament</p>
-                    <span>Tennis Club</span>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Sports Stats */}
@@ -274,7 +298,7 @@ export default function DashboardLayout({children}) {
                   <i className="fa-solid fa-chart-line"></i>
                   <h3>Your Stats</h3>
                 </div>
-                
+
                 <div className={styles.statItem}>
                   <div className={styles.statIcon}>
                     <i className="fa-solid fa-user-friends"></i>
@@ -320,5 +344,5 @@ export default function DashboardLayout({children}) {
         </div>
       </div>
     </div>
-  )
+  );
 }

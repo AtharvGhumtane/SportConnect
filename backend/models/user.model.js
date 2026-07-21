@@ -12,17 +12,23 @@ const UserSchema = new mongoose.Schema({
     },
     email: {
         type: String,
-        required:true,
-        unique:true,
+        required: true,
+        unique: true,
+        lowercase: true,
+        trim: true,
+    },
+    provider: {
+        type: String,
+        enum: ["email", "google", "github"],
+        default: "email",
     },
     active: {
-        type:Boolean,
+        type: Boolean,
         default: true,
-
     },
     password: {
         type: String,
-        required: true,
+        required: false, // Optional for OAuth users
     },
     profilePicture: {
         type: String,
@@ -31,14 +37,12 @@ const UserSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now,
-
     },
     token: {
         type: String,
-        default: '',
-    },      
-}
-)
+        default: "",
+    },
+});
 
 const User = mongoose.model("User", UserSchema);
 
