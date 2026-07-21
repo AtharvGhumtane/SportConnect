@@ -44,6 +44,10 @@ export default function EventDetailPage() {
   // ── Host modals ─────────────────────────────────────────────────────────────
   const [showAddTeam, setShowAddTeam]   = useState(false);
   const [showAddMatch, setShowAddMatch] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinKeyInput, setJoinKeyInput]   = useState('');
+  const [joinKeyLoading, setJoinKeyLoading] = useState(false);
+  const [joinKeyMsg, setJoinKeyMsg]       = useState('');
   // BUG FIX 6: Separate message state per modal
   const [teamMsg,  setTeamMsg]  = useState('');
   const [matchMsg, setMatchMsg] = useState('');
@@ -246,17 +250,33 @@ export default function EventDetailPage() {
     } catch (e) { console.error(e); }
   };
 
-  const handleJoinEvent = async () => {
+  const handleJoinEvent = () => {
     const token = getToken();
     if (!token) { router.push('/login'); return; }
-    const key = window.prompt('Enter the event key to join:');
-    if (!key || !key.trim()) return;
+    setJoinKeyInput('');
+    setJoinKeyMsg('');
+    setShowJoinModal(true);
+  };
+
+  const handleJoinSubmit = async (e) => {
+    e.preventDefault();
+    const token = getToken();
+    if (!token) { router.push('/login'); return; }
+    if (!joinKeyInput.trim()) return;
+
+    setJoinKeyLoading(true);
+    setJoinKeyMsg('');
     try {
-      await clientServer.post('/events/join', { token, eventKey: key.trim().toUpperCase() });
-      alert('🎉 Joined event successfully!');
-      fetchEvent();
+      await clientServer.post('/events/join', { token, eventKey: joinKeyInput.trim().toUpperCase() });
+      setJoinKeyMsg('🎉 Joined event successfully!');
+      setTimeout(() => {
+        setShowJoinModal(false);
+        fetchEvent();
+      }, 800);
     } catch (err) {
-      alert('❌ ' + (err.response?.data?.message || err.message));
+      setJoinKeyMsg('❌ ' + (err.response?.data?.message || err.message));
+    } finally {
+      setJoinKeyLoading(false);
     }
   };
 
@@ -697,6 +717,39 @@ export default function EventDetailPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ══════ JOIN EVENT MODAL ══════════════════════════════════ */}
+        {showJoinModal && (
+          <div className={styles.overlay} onClick={() => setShowJoinModal(false)}>
+            <div className={styles.modal} onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHeader}>
+                <h2>🔑 Join Event via Secret Key</h2>
+                <button className={styles.closeBtn} onClick={() => setShowJoinModal(false)}>✕</button>
+              </div>
+              <form className={styles.form} onSubmit={handleJoinSubmit}>
+                <label>Enter Event Key *</label>
+                <input
+                  required
+                  autoFocus
+                  value={joinKeyInput}
+                  onChange={e => setJoinKeyInput(e.target.value.toUpperCase())}
+                  placeholder="e.g. A1B2C3D4"
+                  style={{
+                    letterSpacing: '3px',
+                    fontSize: '1.1rem',
+                    fontWeight: 800,
+                    textAlign: 'center',
+                    textTransform: 'uppercase'
+                  }}
+                />
+                {joinKeyMsg && <p className={styles.formMsg}>{joinKeyMsg}</p>}
+                <button type="submit" className={styles.submitBtn} disabled={joinKeyLoading}>
+                  {joinKeyLoading ? 'Joining Event…' : 'Join Event'}
+                </button>
+              </form>
+            </div>
           </div>
         )}
 
