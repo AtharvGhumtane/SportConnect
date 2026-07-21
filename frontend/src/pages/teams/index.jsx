@@ -26,6 +26,7 @@ export default function TeamsPage() {
   const [inviteUserIdMap, setInviteUserIdMap] = useState({});
   const [inviteSearchMap, setInviteSearchMap] = useState({});
   const [activeSearchTeamId, setActiveSearchTeamId] = useState(null);
+  const [pendingTeamIds, setPendingTeamIds] = useState([]);
 
   // Create Team Form States
   const [teamForm, setTeamForm] = useState({
@@ -38,8 +39,14 @@ export default function TeamsPage() {
   const fetchTeams = async () => {
     try {
       setLoading(true);
-      const res = await clientServer.get('/teams');
+      const token = localStorage.getItem("token");
+      const res = await clientServer.get('/teams', {
+        headers: token ? { 'x-auth-token': token } : {}
+      });
       setTeams(res.data.teams || []);
+      if (Array.isArray(res.data.pendingTeamIds)) {
+        setPendingTeamIds(res.data.pendingTeamIds);
+      }
     } catch (error) {
       console.error("Failed to fetch teams:", error);
     } finally {
@@ -131,10 +138,15 @@ export default function TeamsPage() {
     try {
       const token = localStorage.getItem("token");
       const res = await clientServer.post('/teams/join', { token, teamId });
-      showFeedback(res.data.message || "Joined team successfully!", "success");
+      showFeedback(res.data.message || "Join request sent to team owner!", "success");
+      setPendingTeamIds(prev => Array.from(new Set([...prev, teamId.toString()])));
       fetchTeams();
     } catch (error) {
-      showFeedback(error.response?.data?.message || "Failed to join team", "error");
+      const msg = error.response?.data?.message || "Failed to send join request";
+      showFeedback(msg, "error");
+      if (msg.toLowerCase().includes("already pending")) {
+        setPendingTeamIds(prev => Array.from(new Set([...prev, teamId.toString()])));
+      }
     }
   };
 
@@ -369,6 +381,7 @@ export default function TeamsPage() {
                 const isMember = isUserMember(team);
                 const isFull = team.members.length >= team.maxSize;
                 const isOwner = team.creatorId?._id === currentUserId || team.creatorId === currentUserId;
+                const isPending = pendingTeamIds.some(id => id.toString() === team._id.toString());
                 
                 return (
                   <div key={team._id} className={styles.teamCard}>
@@ -506,6 +519,13 @@ export default function TeamsPage() {
                               Leave
                             </button>
                           </>
+                        ) : isPending ? (
+                          <button 
+                            className={styles.pendingBtn}
+                            disabled
+                          >
+                            <i className="fa-solid fa-clock"></i> Request Pending
+                          </button>
                         ) : (
                           <button 
                             className={styles.joinBtn} 

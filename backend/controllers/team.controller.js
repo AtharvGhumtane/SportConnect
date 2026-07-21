@@ -7,7 +7,23 @@ export const getAllTeams = async (req, res) => {
         const teams = await Team.find()
             .populate('creatorId', 'name username email profilePicture')
             .populate('members', 'name username email profilePicture');
-        return res.json({ teams });
+
+        const token = req.headers["x-auth-token"] || req.query.token;
+        let pendingTeamIds = [];
+
+        if (token) {
+            const user = await User.findOne({ token });
+            if (user) {
+                const pendingRequests = await Notification.find({
+                    senderId: user._id,
+                    type: "team_join_request",
+                    $or: [{ read: false }, { isRead: false }]
+                });
+                pendingTeamIds = pendingRequests.map(r => r.relatedId ? r.relatedId.toString() : null).filter(Boolean);
+            }
+        }
+
+        return res.json({ teams, pendingTeamIds });
     } catch (error) {
         console.error("Get all teams error:", error);
         return res.status(500).json({ message: error.message });
