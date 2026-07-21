@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import UserLayout from '@/layout/UserLayout';
 import DashboardLayout from '@/layout/DashboardLayout';
 import { clientServer } from '@/config';
 import { useSelector } from 'react-redux';
@@ -109,7 +110,8 @@ export default function EventsPage() {
   const isLoggedIn = !!authState?.user;
 
   return (
-    <DashboardLayout>
+    <UserLayout>
+      <DashboardLayout>
       <div className={styles.page}>
         {/* ── Hero Header ─────────────────────────────────── */}
         <div className={styles.hero}>
@@ -297,5 +299,6 @@ export default function EventsPage() {
         )}
       </div>
     </DashboardLayout>
+  </UserLayout>
   );
 }

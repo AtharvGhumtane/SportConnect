@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import UserLayout from '@/layout/UserLayout';
 import DashboardLayout from '@/layout/DashboardLayout';
 import { clientServer, BASE_URL } from '@/config';
 import { useRouter } from 'next/router';
@@ -264,21 +265,25 @@ export default function EventDetailPage() {
 
   // ── Loading / not found ───────────────────────────────────────────────────────
   if (loading) return (
-    <DashboardLayout>
-      <div className={styles.center}>
-        <div className={styles.spinner} />
-        <p>Loading event…</p>
-      </div>
-    </DashboardLayout>
+    <UserLayout>
+      <DashboardLayout>
+        <div className={styles.center}>
+          <div className={styles.spinner} />
+          <p>Loading event…</p>
+        </div>
+      </DashboardLayout>
+    </UserLayout>
   );
 
   if (!event) return (
-    <DashboardLayout>
-      <div className={styles.center}>
-        <p style={{ color: '#94a3b8' }}>Event not found.</p>
-        <button className={styles.actionBtn} onClick={() => router.push('/events')}>← Back to Events</button>
-      </div>
-    </DashboardLayout>
+    <UserLayout>
+      <DashboardLayout>
+        <div className={styles.center}>
+          <p style={{ color: '#94a3b8' }}>Event not found.</p>
+          <button className={styles.actionBtn} onClick={() => router.push('/events')}>← Back to Events</button>
+        </div>
+      </DashboardLayout>
+    </UserLayout>
   );
 
   const currentSport    = event.sports?.[activeSport];
@@ -305,7 +310,8 @@ export default function EventDetailPage() {
   const hasCoverImg     = !!event.coverImage;
 
   return (
-    <DashboardLayout>
+    <UserLayout>
+      <DashboardLayout>
       <div className={styles.page}>
 
         {/* ── EVENT HEADER ──────────────────────────────────────── */}
@@ -797,6 +803,7 @@ export default function EventDetailPage() {
         )}
       </div>
     </DashboardLayout>
+  </UserLayout>
   );
 }
 
