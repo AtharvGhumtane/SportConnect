@@ -21,45 +21,191 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const convertUserDataTOPDF = async (userData) => {
-    const doc = new PDFDocument();
+    return new Promise((resolve, reject) => {
+        try {
+            const doc = new PDFDocument({ size: 'A4', margin: 35 });
+            const outputPath = `resume-${crypto.randomBytes(16).toString("hex")}.pdf`;
+            const uploadDir = path.join(__dirname, "../uploads");
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+            const fullPath = path.join(uploadDir, outputPath);
+            const stream = fs.createWriteStream(fullPath);
 
-    const outputPath = crypto.randomBytes(32).toString("hex") + ".pdf";
-    const stream  = fs.createWriteStream(path.join(__dirname, "../uploads", outputPath));
+            doc.pipe(stream);
 
-    doc.pipe(stream);
+            // ── Styling Tokens ──
+            const PRIMARY = '#0F172A';     // Obsidian dark slate
+            const ACCENT  = '#F59E0B';     // Gold
+            const TEXT_MAIN = '#1E293B';
+            const TEXT_MUTED = '#64748B';
+            const BG_LIGHT = '#F8FAFC';
+            const BORDER = '#E2E8F0';
 
-    if (userData?.userId?.profilePicture) {
-        const imagePath = path.join(__dirname, "../uploads", userData.userId.profilePicture);
-        if (fs.existsSync(imagePath)) {
-            doc.image(imagePath, { align: "center", width: 100 });
-        } else {
-            console.warn(`Profile picture not found at: ${imagePath}`);
+            // ── Top Header Bar ──
+            doc.rect(0, 0, 595.28, 85).fill(PRIMARY);
+            doc.rect(0, 85, 595.28, 5).fill(ACCENT);
+
+            // Header Title
+            doc.fillColor('#FFFFFF')
+               .fontSize(20)
+               .font('Helvetica-Bold')
+               .text('SPORTCONNECT', 40, 25, { characterSpacing: 1 });
+
+            doc.fillColor(ACCENT)
+               .fontSize(10)
+               .font('Helvetica-Bold')
+               .text('PRO ATHLETE PORTFOLIO & RESUME', 40, 52, { characterSpacing: 1.5 });
+
+            // Document Badge
+            doc.fillColor('#94A3B8')
+               .fontSize(8)
+               .font('Helvetica')
+               .text(`ID: SC-${Date.now().toString().slice(-6)}`, 430, 35, { align: 'right' });
+
+            doc.fillColor('#4ADE80')
+               .fontSize(8)
+               .font('Helvetica-Bold')
+               .text('VERIFIED ATHLETE', 430, 48, { align: 'right' });
+
+            // ── Profile Header Block ──
+            let currentY = 110;
+
+            // Profile Picture (if available)
+            if (userData?.userId?.profilePicture && userData.userId.profilePicture !== 'default.jpg') {
+                const imagePath = path.join(uploadDir, userData.userId.profilePicture);
+                if (fs.existsSync(imagePath)) {
+                    try {
+                        doc.image(imagePath, 40, currentY, { fit: [75, 75], align: 'center', valig: 'center' });
+                    } catch (e) {
+                        console.warn(`Profile image error: ${e.message}`);
+                    }
+                }
+            }
+
+            const leftMargin = (userData?.userId?.profilePicture && userData.userId.profilePicture !== 'default.jpg') ? 130 : 40;
+
+            const name = userData?.userId?.name || "Athlete Name";
+            const username = userData?.userId?.username ? `@${userData.userId.username}` : "@athlete";
+            const email = userData?.userId?.email || "N/A";
+            const currentPost = userData?.currentPost || userData?.currentPosition || "Free Agent / Athlete";
+
+            doc.fillColor(TEXT_MAIN)
+               .fontSize(20)
+               .font('Helvetica-Bold')
+               .text(name, leftMargin, currentY);
+
+            doc.fillColor(ACCENT)
+               .fontSize(11)
+               .font('Helvetica-Bold')
+               .text(currentPost, leftMargin, currentY + 24);
+
+            doc.fillColor(TEXT_MUTED)
+               .fontSize(9.5)
+               .font('Helvetica')
+               .text(`${username}  •  ${email}`, leftMargin, currentY + 40);
+
+            currentY += 85;
+
+            // ── Divider Line ──
+            doc.moveTo(40, currentY).lineTo(555, currentY).strokeColor(BORDER).lineWidth(1).stroke();
+            currentY += 15;
+
+            // ── Athletic Performance Stats Grid ──
+            doc.rect(40, currentY, 515, 60).fill(BG_LIGHT).strokeColor(BORDER).stroke();
+
+            const statCols = [
+                { label: 'NETWORK', val: 'Connected' },
+                { label: 'STATUS', val: 'Active Pro' },
+                { label: 'VERIFICATION', val: 'Passed' },
+                { label: 'PLATFORM', val: 'SportConnect' }
+            ];
+
+            statCols.forEach((col, idx) => {
+                const colX = 40 + (idx * 128);
+                doc.fillColor(ACCENT)
+                   .fontSize(12)
+                   .font('Helvetica-Bold')
+                   .text(col.val, colX + 10, currentY + 14, { width: 110, align: 'center' });
+
+                doc.fillColor(TEXT_MUTED)
+                   .fontSize(8)
+                   .font('Helvetica-Bold')
+                   .text(col.label, colX + 10, currentY + 34, { width: 110, align: 'center' });
+            });
+
+            currentY += 80;
+
+            // ── Bio & Summary Section ──
+            doc.fillColor(PRIMARY)
+               .fontSize(13)
+               .font('Helvetica-Bold')
+               .text('ABOUT & ATHLETIC SUMMARY', 40, currentY);
+
+            currentY += 18;
+            doc.rect(40, currentY, 40, 2.5).fill(ACCENT);
+            currentY += 12;
+
+            const bioText = userData?.bio || "Passionate athlete dedicated to sportsmanship, teamwork, and competitive excellence.";
+            doc.fillColor(TEXT_MAIN)
+               .fontSize(10)
+               .font('Helvetica')
+               .text(bioText, 40, currentY, { width: 515, lineHeight: 4 });
+
+            currentY += Math.max(45, doc.heightOfString(bioText, { width: 515 }) + 20);
+
+            // ── Past Work & Career Achievements ──
+            doc.fillColor(PRIMARY)
+               .fontSize(13)
+               .font('Helvetica-Bold')
+               .text('CAREER EXPERIENCE & TEAMS', 40, currentY);
+
+            currentY += 18;
+            doc.rect(40, currentY, 40, 2.5).fill(ACCENT);
+            currentY += 15;
+
+            if (Array.isArray(userData?.pastWork) && userData.pastWork.length > 0) {
+                userData.pastWork.forEach((work) => {
+                    doc.circle(48, currentY + 6, 4).fill(ACCENT);
+
+                    doc.fillColor(TEXT_MAIN)
+                       .fontSize(11)
+                       .font('Helvetica-Bold')
+                       .text(work.position || 'Athlete / Team Member', 62, currentY);
+
+                    doc.fillColor(TEXT_MUTED)
+                       .fontSize(9.5)
+                       .font('Helvetica')
+                       .text(`${work.company || 'Sports Club'} (${work.years || 'N/A'})`, 62, currentY + 15);
+
+                    currentY += 38;
+                });
+            } else {
+                doc.fillColor(TEXT_MUTED)
+                   .fontSize(9.5)
+                   .font('Helvetica-Oblique')
+                   .text('No previous sports experience or teams registered yet.', 40, currentY);
+                currentY += 30;
+            }
+
+            // ── Footer ──
+            const footerY = 780;
+            doc.moveTo(40, footerY - 10).lineTo(555, footerY - 10).strokeColor(BORDER).stroke();
+
+            doc.fillColor(TEXT_MUTED)
+               .fontSize(8)
+               .font('Helvetica')
+               .text('Official SportConnect Athlete Profile Document • Generated automatically', 40, footerY, { align: 'center', width: 515 });
+
+            doc.end();
+
+            stream.on("finish", () => resolve(outputPath));
+            stream.on("error", (err) => reject(err));
+        } catch (err) {
+            reject(err);
         }
-    }
-    const name = userData?.userId?.name || "N/A";
-    const email = userData?.userId?.email || "N/A";
-    const username = userData?.userId?.username || "N/A";
-    const bio = userData?.bio || "";
-    const currentPost = userData?.currentPost || userData?.currentPosition || "";
-
-    doc.fontSize(14).text(`Name: ${name}`);
-    doc.fontSize(14).text(`Email: ${email}`);
-    doc.fontSize(14).text(`Username: ${username}`);
-    doc.fontSize(14).text(`Bio: ${bio}`);
-    doc.fontSize(14).text(`Current Position: ${currentPost}`);
-    doc.fontSize(14).text("Past Work");
-    if (Array.isArray(userData?.pastWork)) {
-        userData.pastWork.forEach((work) => {
-            doc.fontSize(14).text(`Company: ${work.company || ''}`);
-            doc.fontSize(14).text(`Position: ${work.position || ''}`);
-            doc.fontSize(14).text(`Duration: ${work.years || ''}`);
-        });
-    }
-
-    doc.end();
-
-    return outputPath;
-}
+    });
+};
 
 
 
@@ -611,8 +757,13 @@ export const downloadProfile = async (req, res) => {
         if (!userProfile) return res.status(404).json({ message: "Profile not found" });
 
         let outputPath = await convertUserDataTOPDF(userProfile);
+        const fullPath = path.join(__dirname, "../uploads", outputPath);
 
-        return res.json({"message": outputPath});
+        if (req.query.direct === 'true') {
+            return res.download(fullPath, `${userProfile.userId?.username || 'athlete'}_resume.pdf`);
+        }
+
+        return res.json({ message: outputPath, pdfUrl: `/uploads/${outputPath}` });
     } catch (error) {
         console.error("Download profile error:", error);
         return res.status(500).json({ message: error.message });
@@ -783,44 +934,48 @@ export const commentPost = async (req, res) => {
     if (post.userId && post.userId.toString() !== user._id.toString()) {
         const notification = new Notification({
             userId: post.userId,
-            senderId: user._id,
-            type: "comment",
-            relatedId: post._id,
-            message: `${user.name} commented on your post.`,
-        });
-        await notification.save();
+        return res.json({ message: "Comment added successfully" });
+    } catch (error) {
+        console.error("Comment error:", error);
+        return res.status(500).json({ message: error.message });
     }
-
-    return res.status(200).json({ message: "Comment added successfully" });
-  } catch (error) {
-    console.error("Comment error:", error);
-    return res.status(500).json({ message: error.message });
-  }
 };
-
-
-
 
 export const getUserProfileAndUserBasedOnUsername = async (req,res) => {
     const { username } = req.query;
 
-    try{
-       const user = await User.findOne({
-        username
-       });
-
-       if(!user){
-        return res.status(404).json({message:"User not found"})
+    try {
+       if (!username) {
+           return res.status(400).json({ message: "Username is required" });
        }
 
-       const userProfile = await Profile.findOne({userId:user._id})
-           .populate('userId','name username email profilePicture')
-        
-        // Fix: Return with userProfile key to match frontend expectation
-        return res.json({"profile":userProfile})
+       const user = await User.findOne({ username });
 
-    }catch(error){
-        return res.status(500).json({message:error.message})
+       if (!user) {
+           return res.status(404).json({ message: "User not found" });
+       }
+
+       let userProfile = await Profile.findOne({ userId: user._id })
+           .populate('userId', 'name username email profilePicture');
+        
+       if (!userProfile) {
+           userProfile = new Profile({
+               userId: user._id,
+               bio: "",
+               currentPosition: "",
+               pastWork: [],
+               education: []
+           });
+           await userProfile.save();
+           userProfile = await Profile.findOne({ userId: user._id })
+               .populate('userId', 'name username email profilePicture');
+       }
+
+       return res.json({ "profile": userProfile });
+
+    } catch(error) {
+        console.error("getUserProfileAndUserBasedOnUsername error:", error);
+        return res.status(500).json({ message: error.message });
     }
 }
 
@@ -829,41 +984,29 @@ export const getNotifications = async (req, res) => {
 
     try {
         const user = await User.findOne({ token });
-        if (!user) return res.status(404).json({ message: "User not found" });
+        if (!user) return res.status(401).json({ message: "Unauthorized" });
 
         const notifications = await Notification.find({ userId: user._id })
             .populate('senderId', 'name username profilePicture')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .limit(30);
 
         return res.json({ notifications });
     } catch (error) {
-        console.error("Get notifications error:", error);
         return res.status(500).json({ message: error.message });
     }
 };
 
 export const markNotificationsRead = async (req, res) => {
-    const { token, notificationId } = req.body;
+    const token = req.headers["x-auth-token"] || req.body?.token;
 
     try {
         const user = await User.findOne({ token });
-        if (!user) return res.status(404).json({ message: "User not found" });
+        if (!user) return res.status(401).json({ message: "Unauthorized" });
 
-        if (notificationId) {
-            await Notification.updateOne(
-                { _id: notificationId, userId: user._id },
-                { $set: { isRead: true } }
-            );
-        } else {
-            await Notification.updateMany(
-                { userId: user._id, isRead: false },
-                { $set: { isRead: true } }
-            );
-        }
-
+        await Notification.updateMany({ userId: user._id, read: false }, { $set: { read: true } });
         return res.json({ message: "Notifications marked as read" });
     } catch (error) {
-        console.error("Mark notifications read error:", error);
         return res.status(500).json({ message: error.message });
     }
 };
@@ -874,7 +1017,6 @@ export const getUserConnections = async (req, res) => {
     try {
         if (!userId) return res.status(400).json({ message: "User ID is required" });
 
-        // Find all accepted connection requests where this user is either sender or receiver
         const connections = await ConnectionRequest.find({
             $or: [
                 { userId: userId, status_accepted: true },
@@ -884,14 +1026,15 @@ export const getUserConnections = async (req, res) => {
         .populate('userId', 'name email username profilePicture')
         .populate('connectionId', 'name email username profilePicture');
 
-        // Map them to return the other user
         const formattedConnections = connections.map(conn => {
-            if (conn.userId._id.toString() === userId.toString()) {
+            if (!conn.userId || !conn.connectionId) return null;
+            const senderIdStr = conn.userId._id ? conn.userId._id.toString() : conn.userId.toString();
+            if (senderIdStr === userId.toString()) {
                 return conn.connectionId;
             } else {
                 return conn.userId;
             }
-        });
+        }).filter(Boolean);
 
         return res.json({ connections: formattedConnections });
     } catch (error) {

@@ -179,48 +179,66 @@ export const getEventById = async (req, res) => {
         if (!event) return res.status(404).json({ message: "Event not found" });
 
         // Optionally resolve caller identity from header (never query string)
-        const token = req.headers["x-auth-token"];
+        const token = req.headers["x-auth-token"] || req.headers["authorization"]?.replace("Bearer ", "");
         let isHost = false, isFollower = false;
         if (token) {
             const caller = await User.findOne({ token });
             if (caller) {
-                isHost = event.hostId._id.toString() === caller._id.toString();
-                isFollower = event.followers.some(
-                    (f) => f._id.toString() === caller._id.toString()
-                );
+                const callerIdStr = caller._id.toString();
+                const hostIdStr = event.hostId?._id ? event.hostId._id.toString() : event.hostId?.toString();
+                isHost = hostIdStr === callerIdStr;
+                isFollower = Array.isArray(event.followers) && event.followers.some(f => {
+                    if (!f) return false;
+                    const fid = f._id ? f._id.toString() : f.toString();
+                    return fid === callerIdStr;
+                });
             }
         }
 
         return res.json({ event, isHost, isFollower });
     } catch (err) {
+        console.error("getEventById error:", err);
         return res.status(500).json({ message: err.message });
     }
 };
 
 // POST /events/join  — follower enters eventKey to join
 export const joinEventByKey = async (req, res) => {
-    const user = await resolveUser(req);
-    if (!user) return res.status(401).json({ message: "Unauthorized" });
-
-    const { eventKey } = req.body;
-    if (!eventKey) return res.status(400).json({ message: "eventKey is required" });
-
     try {
-        const event = await SportEvent.findOne({ eventKey: eventKey.toUpperCase() });
-        if (!event) return res.status(404).json({ message: "No event found with that key" });
+        const user = await resolveUser(req);
+        if (!user) return res.status(401).json({ message: "Unauthorized. Please log in again." });
 
-        const alreadyFollowing = event.followers.some(
-            (f) => f.toString() === user._id.toString()
-        );
-        if (alreadyFollowing)
+        const { eventKey } = req.body;
+        if (!eventKey || typeof eventKey !== 'string') {
+            return res.status(400).json({ message: "Valid eventKey is required" });
+        }
+
+        const cleanKey = eventKey.trim().toUpperCase();
+        const event = await SportEvent.findOne({ eventKey: cleanKey });
+        if (!event) return res.status(404).json({ message: `No event found with key "${cleanKey}"` });
+
+        if (!Array.isArray(event.followers)) {
+            event.followers = [];
+        }
+
+        const userIdStr = user._id.toString();
+        const alreadyFollowing = event.followers.some(f => {
+            if (!f) return false;
+            const fid = f._id ? f._id.toString() : f.toString();
+            return fid === userIdStr;
+        });
+
+        if (alreadyFollowing) {
             return res.status(400).json({ message: "You are already following this event" });
+        }
 
         event.followers.push(user._id);
         await event.save();
 
         return res.json({ message: "Joined event successfully", eventId: event._id });
     } catch (err) {
-        return res.status(500).json({ message: err.message });
+        console.error("joinEventByKey error:", err);
+        return res.status(500).json({ message: err.message || "Failed to join event" });
     }
 };
 

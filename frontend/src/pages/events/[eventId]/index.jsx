@@ -248,14 +248,14 @@ export default function EventDetailPage() {
   const handleJoinEvent = async () => {
     const token = getToken();
     if (!token) { router.push('/login'); return; }
-    // Prompt user for key
     const key = window.prompt('Enter the event key to join:');
-    if (!key) return;
+    if (!key || !key.trim()) return;
     try {
       await clientServer.post('/events/join', { token, eventKey: key.trim().toUpperCase() });
+      alert('🎉 Joined event successfully!');
       fetchEvent();
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      alert('❌ ' + (err.response?.data?.message || err.message));
     }
   };
 

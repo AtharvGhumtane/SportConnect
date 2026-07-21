@@ -27,8 +27,32 @@ export default function UpdateProfile() {
   const [profilePicture, setProfilePicture] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+
+  const handleDownloadResume = async () => {
+    if (!authState.user?.userId?._id) return;
+    try {
+      setDownloadingPdf(true);
+      const response = await clientServer.get(`/user/download_resume?id=${authState.user.userId._id}`);
+      const pdfFileName = response.data.message;
+      const pdfUrl = `${BASE_URL}/uploads/${pdfFileName}`;
+      
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.setAttribute('download', `${authState.user.userId.username || 'athlete'}_resume.pdf`);
+      link.setAttribute('target', '_blank');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error("Failed to download resume:", error);
+      showMessage("Failed to generate Pro Athlete Resume. Please try again.", "error");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   useEffect(() => {
     dispatch(getAboutUser({ token: localStorage.getItem("token") }));
@@ -227,9 +251,33 @@ export default function UpdateProfile() {
       <DashboardLayout>
         <div className={styles.container}>
           {/* Header */}
-          <div className={styles.pageHeader}>
-            <h1><i className="fa-solid fa-id-card"></i> Athlete Profile Editor</h1>
-            <p>Manage your public scouting profile, achievements, and account details</p>
+          <div className={styles.pageHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h1><i className="fa-solid fa-id-card"></i> Athlete Profile Editor</h1>
+              <p>Manage your public scouting profile, achievements, and account details</p>
+            </div>
+            <button
+              onClick={handleDownloadResume}
+              disabled={downloadingPdf}
+              style={{
+                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                color: '#0f172a',
+                fontWeight: '800',
+                fontSize: '0.9rem',
+                padding: '0.65rem 1.25rem',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: downloadingPdf ? 'wait' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                boxShadow: '0 4px 15px rgba(245, 158, 11, 0.25)',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <i className={`fa-solid ${downloadingPdf ? 'fa-spinner fa-spin' : 'fa-file-pdf'}`}></i>
+              {downloadingPdf ? 'Generating PDF...' : '⚡ Download Pro Resume (PDF)'}
+            </button>
           </div>
 
           {/* Feedback Message */}

@@ -34,11 +34,11 @@ export default function ViewProfilePage({userProfile}) {
   useEffect(() => {
     if (postReducer.posts && Array.isArray(postReducer.posts)) {
       let post = postReducer.posts.filter((post) => {
-        return post.userId.username === router.query.username
+        return post.userId?.username === router.query.username
       })
       setUserPosts(post);
     }
-  }, [postReducer.posts]);
+  }, [postReducer.posts, router.query.username]);
 
   useEffect(() => {
     if (!userProfile?.userId?._id) return;
@@ -126,12 +126,28 @@ export default function ViewProfilePage({userProfile}) {
     }, 1000);
   };
 
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
   const handleDownloadResume = async () => {
+    if (!userProfile?.userId?._id) return;
     try {
+      setDownloadingPdf(true);
       const response = await clientServer.get(`/user/download_resume?id=${userProfile.userId._id}`);
-      window.open(`${BASE_URL}/uploads/${response.data.message}`, "_blank");
+      const pdfFileName = response.data.message;
+      const pdfUrl = `${BASE_URL}/uploads/${pdfFileName}`;
+      
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.setAttribute('download', `${userProfile.userId.username || 'athlete'}_resume.pdf`);
+      link.setAttribute('target', '_blank');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     } catch (error) {
       console.error("Failed to download resume:", error);
+      alert("Failed to generate Pro Athlete Resume PDF.");
+    } finally {
+      setDownloadingPdf(false);
     }
   };
 
@@ -219,26 +235,16 @@ export default function ViewProfilePage({userProfile}) {
                       {getConnectionButtonText()}
                     </button>
                     
-                    <div
+                    <button
                       onClick={handleDownloadResume}
+                      disabled={downloadingPdf}
                       className={styles.downloadBtn}
-                      title="Download Resume"
+                      title="Download Pro Athlete Resume (PDF)"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: downloadingPdf ? 'wait' : 'pointer' }}
                     >
-                      <svg
-                        style={{ width: "1.25em", height: "1.25em" }}
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth="2.5"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M7.5 7.5h-.75A2.25 2.25 0 0 0 4.5 9.75v7.5a2.25 2.25 0 0 0 2.25 2.25h7.5a2.25 2.25 0 0 0 2.25-2.25v-7.5a2.25 2.25 0 0 0-2.25-2.25h-.75m-6 3.75 3 3m0 0 3-3m-3 3V1.5m6 9h.75a2.25 2.25 0 0 1 2.25 2.25v7.5a2.25 2.25 0 0 1-2.25 2.25h-7.5a2.25 2.25 0 0 1-2.25-2.25v-.75"
-                        />
-                      </svg>
-                    </div>
+                      <i className={`fa-solid ${downloadingPdf ? 'fa-spinner fa-spin' : 'fa-file-pdf'}`}></i>
+                      <span>{downloadingPdf ? 'Generating...' : 'Pro Resume'}</span>
+                    </button>
                   </div>
 
                   {userProfile.bio && (
