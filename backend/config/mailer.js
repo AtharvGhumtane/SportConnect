@@ -1,4 +1,4 @@
-import * as Brevo from "@getbrevo/brevo";
+import { BrevoClient } from "@getbrevo/brevo";
 
 export const sendMail = async ({ to, subject, html, otp }) => {
     const isProduction = process.env.NODE_ENV === "production";
@@ -6,26 +6,25 @@ export const sendMail = async ({ to, subject, html, otp }) => {
 
     if (apiKey) {
         try {
-            const apiInstance = new Brevo.TransactionalEmailsApi();
-            apiInstance.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, apiKey);
+            const client = new BrevoClient({ apiKey });
 
-            const sendSmtpEmail = new Brevo.SendSmtpEmail();
-            sendSmtpEmail.subject = subject;
-            sendSmtpEmail.htmlContent = html;
-            sendSmtpEmail.sender = {
-                name: process.env.BREVO_SENDER_NAME || "SportConnect",
-                email: process.env.BREVO_SENDER_EMAIL || "atharvghumtane02@gmail.com",
-            };
-            sendSmtpEmail.to = [{ email: to }];
-
-            const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+            const data = await client.transactionalEmails.sendTransacEmail({
+                subject,
+                htmlContent: html,
+                sender: {
+                    name: process.env.BREVO_SENDER_NAME || "SportConnect",
+                    email: process.env.BREVO_SENDER_EMAIL || "atharvghumtane02@gmail.com",
+                },
+                to: [{ email: to }],
+            });
 
             console.log(`[BREVO SUCCESS] Real email sent to ${to} via Brevo API`);
-            return { success: true, method: "brevo", messageId: data?.messageId || data?.body?.messageId };
+            return { success: true, method: "brevo", messageId: data?.messageId };
         } catch (error) {
-            console.error("[BREVO ERROR] Failed to deliver email via Brevo API:", error.response?.body?.message || error.message);
+            const errMsg = error.body?.message || error.message;
+            console.error("[BREVO ERROR] Failed to deliver email via Brevo API:", errMsg);
             if (isProduction) {
-                throw new Error("Failed to send email via Brevo: " + (error.response?.body?.message || error.message));
+                throw new Error("Failed to send email via Brevo: " + errMsg);
             }
         }
     }
@@ -44,3 +43,4 @@ export const sendMail = async ({ to, subject, html, otp }) => {
 
     throw new Error("BREVO_API_KEY is not configured in production environment");
 };
+
