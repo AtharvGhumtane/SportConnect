@@ -3,7 +3,7 @@
 // Example: create an axios instance (customize as needed)
 const { default: axios} = require("axios")
 
-export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:9000";
+export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:9000";
 
 export const clientServer = axios.create({
   baseURL: BASE_URL,
@@ -25,5 +25,5 @@ if (typeof window !== 'undefined') {
 // Server-side client for SSR (getServerSideProps) inside Docker
 // Falls back to localhost:9000 for local dev without Docker
 export const serverClient = axios.create({
-  baseURL: process.env.INTERNAL_API_URL || "http://localhost:9000",
+  baseURL: process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:9000",
 });

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import UserLayout from '@/layout/UserLayout';
 import DashboardLayout from '@/layout/DashboardLayout';
-import { clientServer } from '@/config';
+import { clientServer, BASE_URL } from '@/config';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/router';
 import styles from './index.module.css';
@@ -159,7 +159,7 @@ export default function EventsPage() {
                 {ev.coverImage ? (
                   <img
                     className={styles.cardCover}
-                    src={`http://localhost:9000/uploads/${ev.coverImage}`}
+                    src={`${BASE_URL}/uploads/${ev.coverImage}`}
                     alt={ev.name}
                   />
                 ) : (
@@ -181,7 +181,7 @@ export default function EventsPage() {
                     <img
                       className={styles.hostAvatar}
                       src={ev.hostId?.profilePicture
-                        ? `http://localhost:9000/uploads/${ev.hostId.profilePicture}`
+                        ? `${BASE_URL}/uploads/${ev.hostId.profilePicture}`
                         : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(ev.hostId?.name || 'H')}
                       alt={ev.hostId?.name}
                     />
