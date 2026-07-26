@@ -45,12 +45,12 @@ const upload = multer({storage:storage});
 
 router.route('/update_profile_picture').post(upload.single('profilePicture'),uploadProfilePicture);
 
-router.route('/register').post(register);
-router.route('/login').post(login);
-router.route('/auth/send_otp').post(sendOtp);
-router.route('/auth/reset_password').post(resetPassword);
-router.route('/auth/google_oauth').post(googleOauth);
-router.route('/auth/github_oauth').post(githubOauth);
+router.post(['/register', '/auth/register'], register);
+router.post(['/login', '/auth/login'], login);
+router.post(['/auth/send_otp', '/auth/send-otp', '/send_otp', '/send-otp'], sendOtp);
+router.post(['/auth/reset_password', '/auth/reset-password', '/reset_password', '/reset-password'], resetPassword);
+router.post(['/auth/google_oauth', '/auth/google-oauth', '/google_oauth', '/google-oauth'], googleOauth);
+router.post(['/auth/github_oauth', '/auth/github-oauth', '/github_oauth', '/github-oauth'], githubOauth);
 router.route('/user_update').post(updateUserProfile);
 router.route('/get_user_and_profile').get(getUserAndProfile);
 router.route('/update_profile_data').post(updateProfileData);
