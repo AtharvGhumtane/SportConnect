@@ -41,7 +41,14 @@ const start = async () => {
     const mongoURI = process.env.MONGO_URI || "mongodb://localhost:27017/aim-gold";
     const PORT = process.env.PORT || 9000;
     console.log(`Connecting to MongoDB: ${mongoURI}`);
-    await mongoose.connect(mongoURI);
+
+    try {
+        await mongoose.connect(mongoURI);
+        console.log('MongoDB connected successfully');
+    } catch (err) {
+        console.error('MongoDB connection failed:', err.message);
+        process.exit(1);
+    }
 
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
