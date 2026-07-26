@@ -1,46 +1,46 @@
-import { Resend } from "resend";
+import * as Brevo from "@getbrevo/brevo";
 
 export const sendMail = async ({ to, subject, html, otp }) => {
     const isProduction = process.env.NODE_ENV === "production";
-    const apiKey = process.env.RESEND_API_KEY;
+    const apiKey = process.env.BREVO_API_KEY;
 
     if (apiKey) {
         try {
-            const resend = new Resend(apiKey);
-            const fromAddress = process.env.RESEND_FROM || '"SportConnect" <onboarding@resend.dev>';
+            const apiInstance = new Brevo.TransactionalEmailsApi();
+            apiInstance.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, apiKey);
 
-            const response = await resend.emails.send({
-                from: fromAddress,
-                to,
-                subject,
-                html,
-            });
+            const sendSmtpEmail = new Brevo.SendSmtpEmail();
+            sendSmtpEmail.subject = subject;
+            sendSmtpEmail.htmlContent = html;
+            sendSmtpEmail.sender = {
+                name: process.env.BREVO_SENDER_NAME || "SportConnect",
+                email: process.env.BREVO_SENDER_EMAIL || "atharvghumtane02@gmail.com",
+            };
+            sendSmtpEmail.to = [{ email: to }];
 
-            if (response.error) {
-                throw new Error(response.error.message);
-            }
+            const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
-            console.log(`[RESEND SUCCESS] Real email sent to ${to} via Resend API (id: ${response.data?.id})`);
-            return { success: true, method: "resend", id: response.data?.id };
+            console.log(`[BREVO SUCCESS] Real email sent to ${to} via Brevo API`);
+            return { success: true, method: "brevo", messageId: data?.messageId || data?.body?.messageId };
         } catch (error) {
-            console.error("[RESEND ERROR] Failed to deliver email via Resend API:", error.message);
+            console.error("[BREVO ERROR] Failed to deliver email via Brevo API:", error.response?.body?.message || error.message);
             if (isProduction) {
-                throw new Error("Failed to send email via Resend: " + error.message);
+                throw new Error("Failed to send email via Brevo: " + (error.response?.body?.message || error.message));
             }
         }
     }
 
-    // Development fallback (No RESEND_API_KEY configured in .env):
+    // Development fallback (No BREVO_API_KEY configured in .env):
     // Logs the 6-digit OTP code directly to terminal output so developer can test sign-up
     if (!isProduction) {
         console.log(`\n==================================================`);
-        console.log(` 📧 [OTP DEV LOG - NO RESEND_API_KEY CONFIGURED]`);
+        console.log(` 📧 [OTP DEV LOG - NO BREVO_API_KEY CONFIGURED]`);
         console.log(` Target Email : ${to}`);
         console.log(` 🔑 OTP CODE   : ${otp}`);
-        console.log(` Notice       : Add RESEND_API_KEY to backend/.env to send real emails via Resend API.`);
+        console.log(` Notice       : Add BREVO_API_KEY to backend/.env to send real emails via Brevo API.`);
         console.log(`==================================================\n`);
         return { success: true, method: "console_dev" };
     }
 
-    throw new Error("RESEND_API_KEY is not configured in production environment");
+    throw new Error("BREVO_API_KEY is not configured in production environment");
 };
