@@ -1,49 +1,46 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
 export const sendMail = async ({ to, subject, html, otp }) => {
     const isProduction = process.env.NODE_ENV === "production";
+    const apiKey = process.env.RESEND_API_KEY;
 
-    // If SMTP credentials are set in environment variables
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    if (apiKey) {
         try {
-            const transporter = nodemailer.createTransport({
-                host: process.env.SMTP_HOST || "smtp.gmail.com",
-                port: Number(process.env.SMTP_PORT) || 465,
-                secure: Number(process.env.SMTP_PORT) === 465 || !process.env.SMTP_PORT,
-                auth: {
-                    user: process.env.SMTP_USER,
-                    pass: process.env.SMTP_PASS,
-                },
-            });
+            const resend = new Resend(apiKey);
+            const fromAddress = process.env.RESEND_FROM || '"SportConnect" <onboarding@resend.dev>';
 
-            await transporter.sendMail({
-                from: process.env.SMTP_FROM || `"SportConnect" <${process.env.SMTP_USER}>`,
+            const response = await resend.emails.send({
+                from: fromAddress,
                 to,
                 subject,
                 html,
             });
 
-            console.log(`[SMTP SUCCESS] Real email sent to ${to} via SMTP`);
-            return { success: true, method: "smtp" };
+            if (response.error) {
+                throw new Error(response.error.message);
+            }
+
+            console.log(`[RESEND SUCCESS] Real email sent to ${to} via Resend API (id: ${response.data?.id})`);
+            return { success: true, method: "resend", id: response.data?.id };
         } catch (error) {
-            console.error("[SMTP ERROR] Failed to deliver real email via SMTP:", error.message);
+            console.error("[RESEND ERROR] Failed to deliver email via Resend API:", error.message);
             if (isProduction) {
-                throw new Error("Failed to send email via SMTP: " + error.message);
+                throw new Error("Failed to send email via Resend: " + error.message);
             }
         }
     }
 
-    // Development fallback (No SMTP configured in .env):
+    // Development fallback (No RESEND_API_KEY configured in .env):
     // Logs the 6-digit OTP code directly to terminal output so developer can test sign-up
     if (!isProduction) {
         console.log(`\n==================================================`);
-        console.log(` 📧 [OTP DEV LOG - NO SMTP CONFIGURED]`);
+        console.log(` 📧 [OTP DEV LOG - NO RESEND_API_KEY CONFIGURED]`);
         console.log(` Target Email : ${to}`);
         console.log(` 🔑 OTP CODE   : ${otp}`);
-        console.log(` Notice       : Add SMTP_USER and SMTP_PASS to backend/.env to send real emails to Gmail.`);
+        console.log(` Notice       : Add RESEND_API_KEY to backend/.env to send real emails via Resend API.`);
         console.log(`==================================================\n`);
         return { success: true, method: "console_dev" };
     }
 
-    throw new Error("SMTP service not configured in production environment");
+    throw new Error("RESEND_API_KEY is not configured in production environment");
 };

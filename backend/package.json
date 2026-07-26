@@ -23,6 +23,7 @@
     "nodemailer": "^9.0.3",
     "nodemon": "^3.1.0",
     "pdf-creator-node": "^2.3.5",
-    "pdfkit": "^0.17.1"
+    "pdfkit": "^0.17.1",
+    "resend": "^6.18.0"
   }
 }
