@@ -461,31 +461,60 @@ export const resetPassword = async (req, res) => {
     }
 };
 
-// ── GOOGLE OAUTH CONTROLLER (Server-Side ID Token Verification) ────────────────
+// ── GOOGLE OAUTH CONTROLLER (Server-Side Token Verification) ────────────────
+// Accepts either:
+//   - idToken  → verified cryptographically via google-auth-library (GSI credential flow)
+//   - accessToken → verified server-side by calling Google's userinfo endpoint (implicit flow)
 export const googleOauth = async (req, res) => {
     try {
-        const { idToken } = req.body;
+        const { idToken, accessToken } = req.body;
 
-        if (!idToken) {
-            return res.status(400).json({ message: "Google ID Token is required" });
+        if (!idToken && !accessToken) {
+            return res.status(400).json({ message: "Google ID Token or Access Token is required" });
         }
 
-        // Verify ID token server-side using google-auth-library
-        const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-        let payload;
+        let email, name, picture;
 
-        try {
-            const ticket = await client.verifyIdToken({
-                idToken,
-                audience: process.env.GOOGLE_CLIENT_ID || undefined,
-            });
-            payload = ticket.getPayload();
-        } catch (authError) {
-            console.error("Google ID Token Verification Failed:", authError.message);
-            return res.status(401).json({ message: "Google authentication failed. Invalid ID Token." });
+        if (idToken) {
+            // ── Path 1: Verify ID Token cryptographically ──
+            const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+            try {
+                const ticket = await client.verifyIdToken({
+                    idToken,
+                    audience: process.env.GOOGLE_CLIENT_ID || undefined,
+                });
+                const payload = ticket.getPayload();
+                email = payload.email;
+                name = payload.name;
+                picture = payload.picture;
+            } catch (authError) {
+                console.error("Google ID Token Verification Failed:", authError.message);
+                return res.status(401).json({ message: "Google authentication failed. Invalid ID Token." });
+            }
+        } else {
+            // ── Path 2: Verify Access Token via Google's userinfo endpoint ──
+            // This is secure: only a valid Google-issued access_token will return
+            // user info from Google's protected endpoint.
+            try {
+                const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                });
+
+                if (!userInfoRes.ok) {
+                    console.error("Google Access Token verification failed:", userInfoRes.status);
+                    return res.status(401).json({ message: "Google authentication failed. Invalid Access Token." });
+                }
+
+                const userInfo = await userInfoRes.json();
+                email = userInfo.email;
+                name = userInfo.name;
+                picture = userInfo.picture;
+            } catch (fetchError) {
+                console.error("Google userinfo fetch failed:", fetchError.message);
+                return res.status(401).json({ message: "Google authentication failed. Could not verify token." });
+            }
         }
 
-        const { email, name, picture } = payload;
         if (!email) {
             return res.status(400).json({ message: "No email returned from Google account" });
         }

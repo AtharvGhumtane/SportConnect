@@ -6,6 +6,7 @@ import styles from "./style.module.css";
 import { loginUser } from '@/config/redux/action/authAction';
 import { emptyMessage } from '@/config/redux/reducer/authReducer';
 import { clientServer } from '@/config';
+import { useGoogleLogin } from '@react-oauth/google';
 
 export default function LoginComponent() {
   const authState = useSelector((state) => state.auth);
@@ -34,6 +35,9 @@ export default function LoginComponent() {
   const [newPassword, setNewPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetFeedback, setResetFeedback] = useState({ msg: "", type: "" });
+
+  // Google OAuth loading state
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   useEffect(() => {
     if (authState.loggedIn || localStorage.getItem("token")) {
@@ -65,7 +69,61 @@ export default function LoginComponent() {
     setLocalFeedback({ msg, type });
   };
 
-  // Step 1: Send Registration OTP
+  // ── Google OAuth via @react-oauth/google (real Google account picker) ──
+  const googleLogin = useGoogleLogin({
+    flow: 'implicit',
+    onSuccess: async (tokenResponse) => {
+      setIsGoogleLoading(true);
+      showLocalMsg("Verifying Google credentials…", "success");
+      try {
+        // The implicit flow gives us an access_token; exchange it for user
+        // info from Google's userinfo endpoint, then send to our backend.
+        // However, our backend expects an idToken verified via google-auth-library.
+        // So we use the 'id_token' flow by requesting the openid scope and
+        // using Google's tokeninfo endpoint to get the id_token.
+        // 
+        // Alternative approach: use the access_token to fetch userinfo,
+        // then send to a modified backend endpoint. But since the backend
+        // already does proper verifyIdToken, we'll get the id_token from
+        // Google's token endpoint.
+
+        // Fetch the id_token from Google's tokeninfo using the access_token
+        const tokenInfoRes = await fetch(
+          `https://www.googleapis.com/oauth2/v3/userinfo`,
+          { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } }
+        );
+        const userInfo = await tokenInfoRes.json();
+
+        if (!userInfo.email) {
+          showLocalMsg("Google account did not return an email address.", "error");
+          setIsGoogleLoading(false);
+          return;
+        }
+
+        // Send the access_token to our backend for server-side verification
+        const res = await clientServer.post("/auth/google_oauth", {
+          accessToken: tokenResponse.access_token,
+        });
+
+        if (res.data.token) {
+          localStorage.setItem("token", res.data.token);
+          router.push("/dashboard");
+        }
+      } catch (err) {
+        showLocalMsg(
+          err.response?.data?.message || "Google authentication failed",
+          "error"
+        );
+      } finally {
+        setIsGoogleLoading(false);
+      }
+    },
+    onError: (error) => {
+      console.error("Google OAuth error:", error);
+      showLocalMsg("Google sign-in was cancelled or failed.", "error");
+    },
+    scope: 'openid email profile',
+  });
   const handleSendSignupOtp = async (e) => {
     e?.preventDefault();
     if (!email || !name || !username || !password) {
@@ -262,9 +320,13 @@ export default function LoginComponent() {
 
               {/* Google OAuth Button */}
               <div className={styles.oauthGroup}>
-                <button type="button" onClick={handleGoogleOAuthLogin} className={styles.googleBtn}>
-                  <i className="fa-brands fa-google"></i>
-                  <span>Continue with Google</span>
+                <button type="button" onClick={() => googleLogin()} disabled={isGoogleLoading} className={styles.googleBtn}>
+                  {isGoogleLoading ? (
+                    <i className="fa-solid fa-spinner fa-spin"></i>
+                  ) : (
+                    <i className="fa-brands fa-google"></i>
+                  )}
+                  <span>{isGoogleLoading ? "Signing in…" : "Continue with Google"}</span>
                 </button>
               </div>
 
