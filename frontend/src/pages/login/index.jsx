@@ -6,7 +6,69 @@ import styles from "./style.module.css";
 import { loginUser } from '@/config/redux/action/authAction';
 import { emptyMessage } from '@/config/redux/reducer/authReducer';
 import { clientServer } from '@/config';
-import { useGoogleLogin } from '@react-oauth/google';
+
+// ── Isolated Google Login Button ──────────────────────────────────────────────
+// useGoogleLogin is a hook that must run unconditionally inside its component,
+// but it will throw if the GoogleOAuthProvider context is missing. By isolating
+// it in its own component that only mounts when the provider is present, any
+// failure stays contained and cannot crash the parent login page.
+const GOOGLE_CONFIGURED = !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+function GoogleLoginButton({ onSuccess, onError }) {
+  const [loading, setLoading] = useState(false);
+  const [initError, setInitError] = useState(false);
+
+  // Dynamically import to avoid crashing if the module or context is missing
+  let googleLogin = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const { useGoogleLogin } = require('@react-oauth/google');
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    googleLogin = useGoogleLogin({
+      flow: 'implicit',
+      onSuccess: async (tokenResponse) => {
+        setLoading(true);
+        try {
+          await onSuccess(tokenResponse);
+        } finally {
+          setLoading(false);
+        }
+      },
+      onError: (error) => {
+        onError(error);
+      },
+      scope: 'openid email profile',
+    });
+  } catch (err) {
+    // GSI script failed to load, context missing, or hook threw
+    console.warn("Google Sign-In unavailable:", err.message);
+    if (!initError) setInitError(true);
+  }
+
+  if (initError || !googleLogin) {
+    return (
+      <div className={styles.oauthGroup}>
+        <button type="button" disabled className={styles.googleBtn} style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+          <i className="fa-brands fa-google"></i>
+          <span>Google Sign-In unavailable</span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.oauthGroup}>
+      <button type="button" onClick={() => googleLogin()} disabled={loading} className={styles.googleBtn}>
+        {loading ? (
+          <i className="fa-solid fa-spinner fa-spin"></i>
+        ) : (
+          <i className="fa-brands fa-google"></i>
+        )}
+        <span>{loading ? "Signing in…" : "Continue with Google"}</span>
+      </button>
+    </div>
+  );
+}
 
 export default function LoginComponent() {
   const authState = useSelector((state) => state.auth);
@@ -35,9 +97,6 @@ export default function LoginComponent() {
   const [newPassword, setNewPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetFeedback, setResetFeedback] = useState({ msg: "", type: "" });
-
-  // Google OAuth loading state
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   useEffect(() => {
     if (authState.loggedIn || localStorage.getItem("token")) {
@@ -69,61 +128,41 @@ export default function LoginComponent() {
     setLocalFeedback({ msg, type });
   };
 
-  // ── Google OAuth via @react-oauth/google (real Google account picker) ──
-  const googleLogin = useGoogleLogin({
-    flow: 'implicit',
-    onSuccess: async (tokenResponse) => {
-      setIsGoogleLoading(true);
-      showLocalMsg("Verifying Google credentials…", "success");
-      try {
-        // The implicit flow gives us an access_token; exchange it for user
-        // info from Google's userinfo endpoint, then send to our backend.
-        // However, our backend expects an idToken verified via google-auth-library.
-        // So we use the 'id_token' flow by requesting the openid scope and
-        // using Google's tokeninfo endpoint to get the id_token.
-        // 
-        // Alternative approach: use the access_token to fetch userinfo,
-        // then send to a modified backend endpoint. But since the backend
-        // already does proper verifyIdToken, we'll get the id_token from
-        // Google's token endpoint.
+  // ── Google OAuth success/error handlers (passed to GoogleLoginButton) ──
+  const handleGoogleSuccess = async (tokenResponse) => {
+    showLocalMsg("Verifying Google credentials…", "success");
+    try {
+      const tokenInfoRes = await fetch(
+        `https://www.googleapis.com/oauth2/v3/userinfo`,
+        { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } }
+      );
+      const userInfo = await tokenInfoRes.json();
 
-        // Fetch the id_token from Google's tokeninfo using the access_token
-        const tokenInfoRes = await fetch(
-          `https://www.googleapis.com/oauth2/v3/userinfo`,
-          { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } }
-        );
-        const userInfo = await tokenInfoRes.json();
-
-        if (!userInfo.email) {
-          showLocalMsg("Google account did not return an email address.", "error");
-          setIsGoogleLoading(false);
-          return;
-        }
-
-        // Send the access_token to our backend for server-side verification
-        const res = await clientServer.post("/auth/google_oauth", {
-          accessToken: tokenResponse.access_token,
-        });
-
-        if (res.data.token) {
-          localStorage.setItem("token", res.data.token);
-          router.push("/dashboard");
-        }
-      } catch (err) {
-        showLocalMsg(
-          err.response?.data?.message || "Google authentication failed",
-          "error"
-        );
-      } finally {
-        setIsGoogleLoading(false);
+      if (!userInfo.email) {
+        showLocalMsg("Google account did not return an email address.", "error");
+        return;
       }
-    },
-    onError: (error) => {
-      console.error("Google OAuth error:", error);
-      showLocalMsg("Google sign-in was cancelled or failed.", "error");
-    },
-    scope: 'openid email profile',
-  });
+
+      const res = await clientServer.post("/auth/google_oauth", {
+        accessToken: tokenResponse.access_token,
+      });
+
+      if (res.data.token) {
+        localStorage.setItem("token", res.data.token);
+        router.push("/dashboard");
+      }
+    } catch (err) {
+      showLocalMsg(
+        err.response?.data?.message || "Google authentication failed",
+        "error"
+      );
+    }
+  };
+
+  const handleGoogleError = (error) => {
+    console.error("Google OAuth error:", error);
+    showLocalMsg("Google sign-in was cancelled or failed.", "error");
+  };
   const handleSendSignupOtp = async (e) => {
     e?.preventDefault();
     if (!email || !name || !username || !password) {
@@ -251,23 +290,7 @@ export default function LoginComponent() {
     }
   };
 
-  // ── OAuth Handlers ──
-  const handleGoogleOAuthLogin = async () => {
-    // Check if Google GSI SDK is available or prompt ID token
-    const dummyIdToken = prompt("Google One-Tap ID Token Authentication:\nEnter your Google ID Token to authenticate (for testing):");
-    if (!dummyIdToken) return;
 
-    try {
-      showLocalMsg("Verifying Google credentials server-side...", "success");
-      const res = await clientServer.post("/auth/google_oauth", { idToken: dummyIdToken });
-      if (res.data.token) {
-        localStorage.setItem("token", res.data.token);
-        router.push("/dashboard");
-      }
-    } catch (err) {
-      showLocalMsg(err.response?.data?.message || "Google authentication failed", "error");
-    }
-  };
 
   return (
     <UserLayout>
@@ -318,17 +341,17 @@ export default function LoginComponent() {
                 </div>
               )}
 
-              {/* Google OAuth Button */}
-              <div className={styles.oauthGroup}>
-                <button type="button" onClick={() => googleLogin()} disabled={isGoogleLoading} className={styles.googleBtn}>
-                  {isGoogleLoading ? (
-                    <i className="fa-solid fa-spinner fa-spin"></i>
-                  ) : (
+              {/* Google OAuth Button — isolated component so GSI failures can't crash the page */}
+              {GOOGLE_CONFIGURED ? (
+                <GoogleLoginButton onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
+              ) : (
+                <div className={styles.oauthGroup}>
+                  <button type="button" disabled className={styles.googleBtn} style={{ opacity: 0.5, cursor: 'not-allowed' }}>
                     <i className="fa-brands fa-google"></i>
-                  )}
-                  <span>{isGoogleLoading ? "Signing in…" : "Continue with Google"}</span>
-                </button>
-              </div>
+                    <span>Google Sign-In not configured</span>
+                  </button>
+                </div>
+              )}
 
               <div className={styles.divider}>
                 <span>or continue with email</span>
