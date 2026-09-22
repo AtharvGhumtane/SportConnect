@@ -4,6 +4,8 @@ import { useRouter } from 'next/router';
 import { useDispatch, useSelector } from 'react-redux';
 import { setTokenIsThere } from '../../config/redux/reducer/authReducer';
 import { BASE_URL, clientServer } from '@/config';
+import Avatar from '@/Components/Avatar';
+import { resolveAvatarUrl } from '@/config/imageUtils';
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
@@ -230,17 +232,13 @@ export default function DashboardLayout({ children }) {
                       onClick={() => router.push(`/view_profile/${profile.userId.username}`)}
                       style={{ cursor: "pointer" }}
                     >
-                      <div className={styles.profileAvatar}>
-                        <img
-                          src={
-                            !profile.userId.profilePicture || profile.userId.profilePicture === 'default.jpg'
-                              ? `${BASE_URL}/uploads/default.jpg`
-                              : `${BASE_URL}/uploads/${profile.userId.profilePicture}`
-                          }
-                          alt={profile.userId.name}
-                          style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
-                        />
-                      </div>
+                      <Avatar
+                        src={resolveAvatarUrl(profile.userId?.profilePicture)}
+                        name={profile.userId?.name}
+                        alt={profile.userId?.name || 'Athlete'}
+                        size={38}
+                        className={styles.profileAvatar}
+                      />
                       <div className={styles.profileInfo}>
                         <p className={styles.profileName}>{profile.userId.name}</p>
                         <span className={styles.profileSport}>@{profile.userId.username}</span>

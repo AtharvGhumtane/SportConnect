@@ -5,6 +5,8 @@ import { clientServer, BASE_URL } from '@/config';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/router';
 import styles from './index.module.css';
+import Avatar from '@/Components/Avatar';
+import { resolveAvatarUrl } from '@/config/imageUtils';
 
 const SPORTS_LIST = ['Football', 'Cricket', 'Basketball', 'Badminton', 'Tennis', 'Volleyball', 'Hockey', 'Table Tennis'];
 
@@ -178,12 +180,12 @@ export default function EventsPage() {
                     ))}
                   </div>
                   <div className={styles.cardMeta}>
-                    <img
+                    <Avatar
                       className={styles.hostAvatar}
-                      src={ev.hostId?.profilePicture
-                        ? `${BASE_URL}/uploads/${ev.hostId.profilePicture}`
-                        : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(ev.hostId?.name || 'H')}
-                      alt={ev.hostId?.name}
+                      src={resolveAvatarUrl(ev.hostId?.profilePicture)}
+                      name={ev.hostId?.name}
+                      alt={ev.hostId?.name || 'Host'}
+                      size={28}
                     />
                     <span className={styles.hostName}>@{ev.hostId?.username}</span>
                     <span className={styles.followerCount}>👥 {ev.followers?.length || 0}</span>

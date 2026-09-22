@@ -5,6 +5,8 @@ import { BASE_URL, clientServer } from '@/config';
 import DashboardLayout from '@/layout/DashboardLayout';
 import UserLayout from '@/layout/UserLayout';
 import styles from './index.module.css';
+import Avatar from '@/Components/Avatar';
+import { resolveAvatarUrl } from '@/config/imageUtils';
 
 export default function UpdateProfile() {
   const dispatch = useDispatch();
@@ -240,11 +242,7 @@ export default function UpdateProfile() {
   }
 
   const user = authState.user;
-  const currentAvatarSrc = previewUrl || (
-    !user.userId.profilePicture || user.userId.profilePicture === 'default.jpg'
-      ? `${BASE_URL}/uploads/default.jpg`
-      : `${BASE_URL}/uploads/${user.userId.profilePicture}`
-  );
+  const currentAvatarSrc = previewUrl || resolveAvatarUrl(user.userId?.profilePicture);
 
   return (
     <UserLayout>
@@ -291,11 +289,12 @@ export default function UpdateProfile() {
           {/* Profile Picture Header Card */}
           <div className={styles.avatarCard}>
             <div className={styles.avatarWrapper}>
-              <img
+              <Avatar
                 src={currentAvatarSrc}
-                alt={user.userId.name}
+                name={user.userId?.name}
+                alt={user.userId?.name || 'Athlete'}
+                size={90}
                 className={styles.avatarImage}
-                onError={(e) => { e.target.src = `${BASE_URL}/uploads/default.jpg`; }}
               />
             </div>
 

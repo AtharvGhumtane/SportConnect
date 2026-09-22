@@ -20,7 +20,7 @@ import { uploadProfilePicture } from '../controllers/user.controller.js';
 import { updateUserProfile } from '../controllers/user.controller.js';
 import { getUserAndProfile } from '../controllers/user.controller.js';
 import { updateProfileData } from '../controllers/user.controller.js';
-import { sendOtp, resetPassword, googleOauth, githubOauth } from '../controllers/user.controller.js';
+import { sendOtp, resetPassword, googleOauth } from '../controllers/user.controller.js';
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -30,27 +30,17 @@ const __dirname = path.dirname(__filename);
 
 const router = Router();
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, path.join(__dirname, '../uploads'));
-    },
-    filename: (req, file, cb) => {
-        const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        const ext = path.extname(file.originalname);
-        cb(null, `profile-${unique}${ext}`);
-    }
-});
+const storage = multer.memoryStorage();
 
-const upload = multer({storage:storage});
+const upload = multer({ storage });
 
-router.route('/update_profile_picture').post(upload.single('profilePicture'),uploadProfilePicture);
+router.route('/update_profile_picture').post(upload.single('profilePicture'), uploadProfilePicture);
 
 router.post(['/register', '/auth/register'], register);
 router.post(['/login', '/auth/login'], login);
 router.post(['/auth/send_otp', '/auth/send-otp', '/send_otp', '/send-otp'], sendOtp);
 router.post(['/auth/reset_password', '/auth/reset-password', '/reset_password', '/reset-password'], resetPassword);
 router.post(['/auth/google_oauth', '/auth/google-oauth', '/google_oauth', '/google-oauth'], googleOauth);
-router.post(['/auth/github_oauth', '/auth/github-oauth', '/github_oauth', '/github-oauth'], githubOauth);
 router.route('/user_update').post(updateUserProfile);
 router.route('/get_user_and_profile').get(getUserAndProfile);
 router.route('/update_profile_data').post(updateProfileData);

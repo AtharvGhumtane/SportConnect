@@ -16,11 +16,39 @@ import Team from "../models/teams.model.js";
 import OTP from "../models/otp.model.js";
 import { sendMail } from "../config/mailer.js";
 import { OAuth2Client } from "google-auth-library";
+import { uploadBufferToCloudinary } from "../config/cloudinary.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const convertUserDataTOPDF = async (userData) => {
+    // Attempt to load profile image buffer (supporting both remote Cloudinary URLs and legacy local files)
+    let profileImageBuffer = null;
+    if (userData?.userId?.profilePicture && userData.userId.profilePicture !== 'default.jpg') {
+        const pic = userData.userId.profilePicture;
+        if (pic.startsWith('http://') || pic.startsWith('https://')) {
+            try {
+                const response = await fetch(pic);
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    profileImageBuffer = Buffer.from(arrayBuffer);
+                }
+            } catch (err) {
+                console.warn(`Could not fetch remote profile picture for PDF: ${err.message}`);
+            }
+        } else {
+            const uploadDir = path.join(__dirname, "../uploads");
+            const localPath = path.join(uploadDir, pic);
+            if (fs.existsSync(localPath)) {
+                try {
+                    profileImageBuffer = fs.readFileSync(localPath);
+                } catch (err) {
+                    console.warn(`Could not read local profile picture for PDF: ${err.message}`);
+                }
+            }
+        }
+    }
+
     return new Promise((resolve, reject) => {
         try {
             const doc = new PDFDocument({ size: 'A4', margin: 35 });
@@ -72,18 +100,15 @@ const convertUserDataTOPDF = async (userData) => {
             let currentY = 110;
 
             // Profile Picture (if available)
-            if (userData?.userId?.profilePicture && userData.userId.profilePicture !== 'default.jpg') {
-                const imagePath = path.join(uploadDir, userData.userId.profilePicture);
-                if (fs.existsSync(imagePath)) {
-                    try {
-                        doc.image(imagePath, 40, currentY, { fit: [75, 75], align: 'center', valig: 'center' });
-                    } catch (e) {
-                        console.warn(`Profile image error: ${e.message}`);
-                    }
+            if (profileImageBuffer) {
+                try {
+                    doc.image(profileImageBuffer, 40, currentY, { fit: [75, 75], align: 'center', valign: 'center' });
+                } catch (e) {
+                    console.warn(`Profile image embed error: ${e.message}`);
                 }
             }
 
-            const leftMargin = (userData?.userId?.profilePicture && userData.userId.profilePicture !== 'default.jpg') ? 130 : 40;
+            const leftMargin = profileImageBuffer ? 130 : 40;
 
             const name = userData?.userId?.name || "Athlete Name";
             const username = userData?.userId?.username ? `@${userData.userId.username}` : "@athlete";
@@ -503,105 +528,6 @@ export const googleOauth = async (req, res) => {
     }
 };
 
-// ── GITHUB OAUTH CONTROLLER (Code-to-Token Exchange & Primary Email Filter) ────────────────
-export const githubOauth = async (req, res) => {
-    try {
-        const { code } = req.body;
-
-        if (!code) {
-            return res.status(400).json({ message: "GitHub authorization code is required" });
-        }
-
-        // 1. Exchange OAuth code for GitHub access token
-        const tokenResponse = await fetch("https://github.com/login/oauth/access_token", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-            },
-            body: JSON.stringify({
-                client_id: process.env.GITHUB_CLIENT_ID,
-                client_secret: process.env.GITHUB_CLIENT_SECRET,
-                code,
-            }),
-        });
-
-        const tokenData = await tokenResponse.json();
-        if (tokenData.error || !tokenData.access_token) {
-            return res.status(401).json({ message: tokenData.error_description || "Failed to exchange GitHub authorization code" });
-        }
-
-        const accessToken = tokenData.access_token;
-
-        // 2. Fetch GitHub emails array
-        const emailsResponse = await fetch("https://api.github.com/user/emails", {
-            headers: {
-                "Authorization": `token ${accessToken}`,
-                "User-Agent": "SportConnect-App",
-            },
-        });
-
-        const emails = await emailsResponse.json();
-        if (!Array.isArray(emails)) {
-            return res.status(400).json({ message: "Failed to fetch email address from GitHub profile" });
-        }
-
-        // 3. Filter primary && verified email
-        const targetEmailObj = emails.find(e => e.primary && e.verified) || emails.find(e => e.verified);
-
-        if (!targetEmailObj || !targetEmailObj.email) {
-            return res.status(400).json({ message: "No verified email address found on GitHub account" });
-        }
-
-        const normalizedEmail = targetEmailObj.email.toLowerCase().trim();
-
-        // 4. Fetch user profile for name/avatar
-        const profileResponse = await fetch("https://api.github.com/user", {
-            headers: {
-                "Authorization": `token ${accessToken}`,
-                "User-Agent": "SportConnect-App",
-            },
-        });
-        const profileData = await profileResponse.json();
-
-        const name = profileData.name || profileData.login || "Athlete";
-        const sessionToken = crypto.randomBytes(32).toString("hex");
-
-        let user = await User.findOne({ email: normalizedEmail });
-
-        if (user) {
-            // Account Linking
-            user.token = sessionToken;
-            if (!user.provider) user.provider = "github";
-            await user.save();
-        } else {
-            // New User Registration with unique collision-checked username
-            const username = await generateUniqueUsername(profileData.login || email.split("@")[0] || "athlete");
-            user = new User({
-                name,
-                email: normalizedEmail,
-                username,
-                provider: "github",
-                token: sessionToken,
-            });
-            await user.save();
-
-            const profile = new Profile({
-                userId: user._id,
-            });
-            await profile.save();
-        }
-
-        return res.status(200).json({
-            message: "GitHub sign-in successful",
-            token: sessionToken
-        });
-    } catch (error) {
-        console.error("GitHub OAuth error:", error);
-        return res.status(500).json({ message: "GitHub authentication server error" });
-    }
-};
-
 export const login = async (req, res) => {
     try{
         const { email, password } = req.body;
@@ -646,13 +572,19 @@ export const uploadProfilePicture = async (req, res) => {
 
         if(!user) return res.status(400).json({message: "User not found"});
 
-        user.profilePicture = req.file.filename;
-
+        // Upload memory buffer directly to Cloudinary
+        const uploadResult = await uploadBufferToCloudinary(req.file.buffer, "sportconnect/avatars");
+        
+        user.profilePicture = uploadResult.secure_url;
         await user.save();
         
-        return res.status(200).json({message: "Profile picture uploaded successfully"});
+        return res.status(200).json({
+            message: "Profile picture uploaded successfully",
+            profilePicture: uploadResult.secure_url
+        });
     }catch(error){
-        return res.status(500).json({ message: "Internal server error"});
+        console.error("Upload profile picture error:", error);
+        return res.status(500).json({ message: error.message || "Internal server error"});
     }
 }
 

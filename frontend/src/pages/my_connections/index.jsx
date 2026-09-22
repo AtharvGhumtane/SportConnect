@@ -6,6 +6,8 @@ import { AcceptConnection, getMyConnectionRequests, getConnectionRequest } from 
 import { BASE_URL } from '@/config';
 import styles from "./index.module.css";
 import { useRouter } from 'next/router';
+import Avatar from '@/Components/Avatar';
+import { resolveAvatarUrl } from '@/config/imageUtils';
 
 export default function MyConnectionsPage() {
   const dispatch = useDispatch();
@@ -102,13 +104,15 @@ export default function MyConnectionsPage() {
                         className={styles.requestCard} 
                         key={user._id || index}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: "space-between" }}>
-                           <img 
-                             src={`${BASE_URL}/uploads/${user.userId.profilePicture}`} 
-                             alt={user.userId.name} 
-                             className={styles.requestAvatar}
-                           />
-                           <div className={styles.requestNameInfo}>
+                         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: "space-between" }}>
+                            <Avatar 
+                              src={resolveAvatarUrl(user.userId?.profilePicture)} 
+                              name={user.userId?.name}
+                              alt={user.userId?.name || 'User'} 
+                              size={44}
+                              className={styles.requestAvatar}
+                            />
+                            <div className={styles.requestNameInfo}>
                                 <h3>{user.userId.name}</h3>
                                 <p>@{user.userId.username}</p>
                            </div>
@@ -147,13 +151,11 @@ export default function MyConnectionsPage() {
                           key={connection._id || index}
                         >
                           <div className={styles.memberAvatarWrapper}>
-                            <img 
-                              src={
-                                !userToShow.profilePicture || userToShow.profilePicture === 'default.jpg'
-                                  ? `${BASE_URL}/uploads/default.jpg`
-                                  : `${BASE_URL}/uploads/${userToShow.profilePicture}`
-                              } 
-                              alt={userToShow.name} 
+                            <Avatar 
+                              src={resolveAvatarUrl(userToShow.profilePicture)} 
+                              name={userToShow.name}
+                              alt={userToShow.name || 'User'} 
+                              size={56}
                               className={styles.memberAvatar}
                             />
                           </div>

@@ -6,6 +6,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { BASE_URL } from '@/config';
 import styles from "./index.module.css";
 import { useRouter } from 'next/router';
+import Avatar from '@/Components/Avatar';
+import { resolveAvatarUrl } from '@/config/imageUtils';
 
 export default function Discoverpage() {
   const authState = useSelector((state) => state.auth);
@@ -56,16 +58,11 @@ export default function Discoverpage() {
               <div onClick={() => {
                    router.push(`/view_profile/${user.userId.username}`)
                    }} key={user._id} className={styles.userProfile}>
-                <img
-                  src={
-                    !user.userId?.profilePicture || user.userId.profilePicture === 'default.jpg'
-                      ? `${BASE_URL}/uploads/default.jpg`
-                      : `${BASE_URL}/uploads/${user.userId.profilePicture}`
-                  }
-                  alt="User Profile"
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/100x100/cccccc/666666?text=User';
-                  }}
+                <Avatar
+                  src={resolveAvatarUrl(user.userId?.profilePicture)}
+                  name={user.userId?.name}
+                  alt={user.userId?.name || 'Athlete'}
+                  size={60}
                   className={styles.profileImage}
                 />
                 <div className={styles.profileInfo}>

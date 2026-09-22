@@ -61,13 +61,6 @@ export default function LoginComponent() {
     };
   }, [resendTimer]);
 
-  // Handle OAuth Callbacks from GitHub redirect URL parameter
-  useEffect(() => {
-    if (router.query.code) {
-      handleGithubCodeExchange(router.query.code);
-    }
-  }, [router.query.code]);
-
   const showLocalMsg = (msg, type) => {
     setLocalFeedback({ msg, type });
   };
@@ -218,25 +211,6 @@ export default function LoginComponent() {
     }
   };
 
-  const handleGithubOAuthLogin = () => {
-    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || "demo_github_client_id";
-    const redirectUri = window.location.origin + "/login";
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user:email`;
-  };
-
-  const handleGithubCodeExchange = async (code) => {
-    try {
-      showLocalMsg("Exchanging GitHub authorization code server-side...", "success");
-      const res = await clientServer.post("/auth/github_oauth", { code });
-      if (res.data.token) {
-        localStorage.setItem("token", res.data.token);
-        router.push("/dashboard");
-      }
-    } catch (err) {
-      showLocalMsg(err.response?.data?.message || "GitHub authentication failed", "error");
-    }
-  };
-
   return (
     <UserLayout>
       <div className={styles.container}>
@@ -286,16 +260,11 @@ export default function LoginComponent() {
                 </div>
               )}
 
-              {/* OAuth Social Buttons */}
+              {/* Google OAuth Button */}
               <div className={styles.oauthGroup}>
                 <button type="button" onClick={handleGoogleOAuthLogin} className={styles.googleBtn}>
                   <i className="fa-brands fa-google"></i>
                   <span>Continue with Google</span>
-                </button>
-
-                <button type="button" onClick={handleGithubOAuthLogin} className={styles.githubBtn}>
-                  <i className="fa-brands fa-github"></i>
-                  <span>Continue with GitHub</span>
                 </button>
               </div>
 

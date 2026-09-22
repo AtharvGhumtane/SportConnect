@@ -5,6 +5,8 @@ import { clientServer, BASE_URL } from '@/config';
 import { useSelector, useDispatch } from 'react-redux';
 import { getAllUsers, getAboutUser } from '@/config/redux/action/authAction';
 import styles from './styles.module.css';
+import Avatar from '@/Components/Avatar';
+import { resolveAvatarUrl } from '@/config/imageUtils';
 
 export default function TeamsPage() {
   const authState = useSelector((state) => state.auth);
@@ -358,13 +360,11 @@ export default function TeamsPage() {
                           key={msg._id} 
                           className={`${styles.chatMessageItem} ${isMyMsg ? styles.myMessage : ''}`}
                         >
-                          <img 
-                            src={
-                              !msg.senderId?.profilePicture || msg.senderId?.profilePicture === 'default.jpg'
-                                ? `${BASE_URL}/uploads/default.jpg`
-                                : `${BASE_URL}/uploads/${msg.senderId?.profilePicture}`
-                            } 
-                            alt={msg.senderId?.name}
+                          <Avatar 
+                            src={resolveAvatarUrl(msg.senderId?.profilePicture)} 
+                            name={msg.senderId?.name}
+                            alt={msg.senderId?.name || 'Sender'}
+                            size={32}
                             className={styles.chatAvatar}
                           />
                           <div className={styles.chatMsgContent}>
@@ -473,11 +473,11 @@ export default function TeamsPage() {
                                           setActiveSearchTeamId(null);
                                         }}
                                       >
-                                        <img 
-                                          src={!u.userId.profilePicture || u.userId.profilePicture === 'default.jpg' 
-                                            ? `${BASE_URL}/uploads/default.jpg` 
-                                            : `${BASE_URL}/uploads/${u.userId.profilePicture}`} 
-                                          alt={u.userId.name} 
+                                        <Avatar 
+                                          src={resolveAvatarUrl(u.userId?.profilePicture)} 
+                                          name={u.userId?.name}
+                                          alt={u.userId?.name || 'Athlete'} 
+                                          size={28}
                                           className={styles.suggestionAvatar}
                                         />
                                         <div className={styles.suggestionInfo}>
@@ -510,13 +510,11 @@ export default function TeamsPage() {
                               className={styles.avatarCircle} 
                               title={`${member.name} (@${member.username})`}
                             >
-                              <img 
-                                src={
-                                  !member.profilePicture || member.profilePicture === 'default.jpg'
-                                    ? `${BASE_URL}/uploads/default.jpg`
-                                    : `${BASE_URL}/uploads/${member.profilePicture}`
-                                } 
-                                alt={member.name}
+                              <Avatar 
+                                src={resolveAvatarUrl(member.profilePicture)} 
+                                name={member.name}
+                                alt={member.name || 'Member'}
+                                size={32}
                               />
                             </div>
                           ))}

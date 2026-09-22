@@ -4,6 +4,8 @@ import DashboardLayout from '@/layout/DashboardLayout';
 import { clientServer, BASE_URL } from '@/config';
 import { useRouter } from 'next/router';
 import styles from './index.module.css';
+import Avatar from '@/Components/Avatar';
+import { resolveAvatarUrl } from '@/config/imageUtils';
 
 const TABS           = ['Matches', 'Bracket', 'Standings', 'Players', 'Calendar', 'Photos'];
 const ROUND_OPTIONS  = ['Group Stage', 'Round of 16', 'Quarter Final', 'Semi Final', 'Final'];
@@ -352,12 +354,12 @@ export default function EventDetailPage() {
                 <p className={styles.eventDates}>📅 {fmt(event.startDate)} → {fmt(event.endDate)}</p>
               </div>
               <div className={styles.headerRight}>
-                <img
+                <Avatar
                   className={styles.hostAvatar}
-                  src={event.hostId?.profilePicture && event.hostId.profilePicture !== 'default.jpg'
-                    ? `${BASE_URL}/uploads/${event.hostId.profilePicture}`
-                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(event.hostId?.name || 'H')}&background=6366f1&color=fff`}
-                  alt={event.hostId?.name}
+                  src={resolveAvatarUrl(event.hostId?.profilePicture)}
+                  name={event.hostId?.name}
+                  alt={event.hostId?.name || 'Host'}
+                  size={42}
                 />
                 <div>
                   <p className={styles.hostLabel}>Hosted by</p>

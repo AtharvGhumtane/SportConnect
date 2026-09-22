@@ -8,8 +8,8 @@ import DashboardLayout from '@/layout/DashboardLayout';
 import styles from "./styles.module.css";
 import { BASE_URL } from '@/config';
 import { resetPostId, setPostId } from '@/config/redux/reducer/postReducer';
-// Remove the duplicate import line below:
-// import { setPostId } from '@/config/redux/action/postAction';
+import Avatar from '@/Components/Avatar';
+import { resolveAvatarUrl, resolveMediaUrl } from '@/config/imageUtils';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -116,13 +116,12 @@ export default function Dashboard() {
               {isLoading ? (
                 <div className={styles.loading}>Loading...</div>
               ) : (
-                <img
-                  src={getProfileImageSrc()}
-                  alt="Profile"
+                <Avatar
+                  src={resolveAvatarUrl(authState?.user?.userId?.profilePicture)}
+                  name={authState?.user?.userId?.name}
+                  alt={authState?.user?.userId?.name || 'Profile'}
+                  size={44}
                   className={styles.profileImage}
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/100x100/cccccc/666666?text=User';
-                  }}
                 />
               )}
               <textarea
@@ -161,23 +160,25 @@ export default function Dashboard() {
 
           <div className={styles.postFeed}>
             {postState.posts.map((post) => {
-              const isOwner = post.userId._id === authState?.user?.userId?._id;
+              const isOwner = post.userId?._id === authState?.user?.userId?._id;
               const userId = authState?.user?.userId?._id;
               const likes = Array.isArray(post.likes) ? post.likes : [];
               const hasLiked = likes.includes(userId);
               const likeCount = likes.length;
+              const mediaSrc = resolveMediaUrl(post.media, BASE_URL);
 
               return (
                 <div key={post._id} className={styles.postCard}>
                   <div className={styles.postHeader}>
-                    <img
+                    <Avatar
+                      src={resolveAvatarUrl(post.userId?.profilePicture)}
+                      name={post.userId?.name}
+                      alt={post.userId?.name || 'User'}
+                      size={40}
                       className={styles.userProfile}
-                      src={`${BASE_URL}/uploads/${post.userId.profilePicture || 'default.jpg'}`}
-                      alt="User"
-                      onError={(e) => { e.target.src = 'https://via.placeholder.com/40'; }}
                     />
                     <div className={styles.headerText}>
-                      <p className={styles.username}>{post.userId.name}</p>
+                      <p className={styles.username}>{post.userId?.name || 'Athlete'}</p>
                       <span className={styles.timestamp}>{new Date(post.createdAt).toLocaleString()}</span>
                     </div>
                     {isOwner && (
@@ -193,10 +194,10 @@ export default function Dashboard() {
 
                   <div className={styles.postBody}>
                     <p className={styles.caption}>{post.body}</p>
-                    {post.media && (
+                    {mediaSrc && (
                       <img
                         className={styles.postImage}
-                        src={`${BASE_URL}/uploads/${post.media}`}
+                        src={mediaSrc}
                         alt="Post"
                         onError={(e) => { e.target.style.display = "none"; }}
                       />
@@ -294,17 +295,12 @@ export default function Dashboard() {
           {postState.comments.map((comment, idx) => (
             <div key={comment._id || idx} className={styles.singleComment}>
               <div className={styles.commentHeader}>
-                <img
-                  className={styles.commentAvatar}
-                  src={
-                    comment.userId?.profilePicture && comment.userId.profilePicture !== 'default.jpg'
-                      ? `${BASE_URL}/uploads/${comment.userId.profilePicture}`
-                      : `${BASE_URL}/uploads/default.jpg`
-                  }
+                <Avatar
+                  src={resolveAvatarUrl(comment.userId?.profilePicture)}
+                  name={comment.userId?.name}
                   alt={comment.userId?.name || "User"}
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/40x40/cccccc/666666?text=User';
-                  }}
+                  size={32}
+                  className={styles.commentAvatar}
                 />
                 <div className={styles.commentUserInfo}>
                   <p className={styles.commentAuthor}>

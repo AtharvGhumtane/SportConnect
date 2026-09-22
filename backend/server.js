@@ -28,8 +28,38 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-app.use(cors());
+const allowedOrigins = [
+    'https://sport-connect-ecru.vercel.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
+];
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, server-to-server)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+            return callback(null, true);
+        }
+        return callback(null, true); // Permissive fallback to prevent breaking any valid frontend deployment
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'Origin', 'Accept']
+}));
+
 app.use(express.json());
+
+// Fast keep-alive & health check endpoint for monitoring pings / cold-start mitigation
+app.get('/health', (req, res) => {
+    return res.status(200).json({
+        status: 'ok',
+        service: 'SportConnect Backend',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString()
+    });
+});
+
 app.use(postsRoutes);
 app.use(userRoutes);
 app.use(teamRoutes);

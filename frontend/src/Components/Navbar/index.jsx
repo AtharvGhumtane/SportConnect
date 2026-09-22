@@ -4,6 +4,8 @@ import { useRouter } from 'next/router';
 import { useDispatch, useSelector } from 'react-redux';
 import { reset } from '@/config/redux/reducer/authReducer';
 import { BASE_URL, clientServer } from '@/config';
+import Avatar from '@/Components/Avatar';
+import { resolveAvatarUrl } from '@/config/imageUtils';
 
 export default function Navbar() {
   const router = useRouter();
@@ -425,20 +427,15 @@ export default function Navbar() {
 
             {/* User Profile Header */}
             <div className={styles.userProfile} onClick={() => router.push("/profile")}>
-              <img
-                src={
-                  !authState.user.userId?.profilePicture || authState.user.userId.profilePicture === 'default.jpg'
-                    ? `${BASE_URL}/uploads/default.jpg`
-                    : `${BASE_URL}/uploads/${authState.user.userId.profilePicture}`
-                }
-                alt={authState.user.userId.name}
+              <Avatar
+                src={resolveAvatarUrl(authState.user?.userId?.profilePicture)}
+                name={authState.user?.userId?.name}
+                alt={authState.user?.userId?.name || 'Athlete'}
+                size={34}
                 className={styles.userAvatar}
-                onError={(e) => {
-                  e.target.src = `${BASE_URL}/uploads/default.jpg`;
-                }}
               />
               <div className={styles.userInfo}>
-                <span className={styles.userName}>{authState.user.userId.name}</span>
+                <span className={styles.userName}>{authState.user?.userId?.name}</span>
                 <span className={styles.userRole}>Athlete</span>
               </div>
             </div>
@@ -617,13 +614,11 @@ export default function Navbar() {
                         className={styles.hubProfileItem}
                         onClick={() => { router.push(`/view_profile/${profile.userId.username}`); setActiveModal(null); }}
                       >
-                        <img
-                          src={
-                            !profile.userId.profilePicture || profile.userId.profilePicture === 'default.jpg'
-                              ? `${BASE_URL}/uploads/default.jpg`
-                              : `${BASE_URL}/uploads/${profile.userId.profilePicture}`
-                          }
-                          alt={profile.userId.name}
+                        <Avatar
+                          src={resolveAvatarUrl(profile.userId?.profilePicture)}
+                          name={profile.userId?.name}
+                          alt={profile.userId?.name || 'Athlete'}
+                          size={32}
                         />
                         <div>
                           <strong>{profile.userId.name}</strong>

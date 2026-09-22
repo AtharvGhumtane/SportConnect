@@ -8,6 +8,7 @@ import bcrypt from "bcryptjs";
 
 import Comment from "../models/comments.model.js"; 
 import Notification from "../models/notification.model.js"; 
+import { uploadBufferToCloudinary } from "../config/cloudinary.js";
 
 export const activeCheck = async (req, res) => {
     return res.status(200).json({
@@ -24,17 +25,27 @@ export const createPost = async (req, res) => {
 
             if(!user) return res.status(400).json({ message: "User not found" });
 
+            let mediaUrl = "";
+            let fileType = "";
+
+            if (req.file) {
+                const uploadResult = await uploadBufferToCloudinary(req.file.buffer, "sportconnect/posts");
+                mediaUrl = uploadResult.secure_url;
+                fileType = req.file.mimetype ? req.file.mimetype.split("/")[1] : "image";
+            }
+
             const post = new Post({
                 userId: user._id,
                 body: req.body.body,
-                media: req.file != undefined ? req.file.filename : "",
-                fileType: req.file != undefined ? req.file.mimetype.split("/")[1]:"",
+                media: mediaUrl,
+                fileType: fileType,
             });
 
             await post.save();
 
-            return res.status(200).json({ message: "Post created successfully" });
+            return res.status(200).json({ message: "Post created successfully", post });
       }catch(error){
+          console.error("Create post error:", error);
           return res.status(500).json({ message: error.message });
       }
 }

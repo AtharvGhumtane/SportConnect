@@ -67,25 +67,50 @@
 
 .buttonJoin {
   background: var(--accent-gold-gradient);
-  color: #0b0f17;
-  padding: 1rem 2.5rem;
+  color: #090e17;
+  padding: 1.1rem 2.75rem;
   border-radius: var(--radius-md);
+  border: 1px solid rgba(254, 240, 138, 0.6);
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
   display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  font-weight: 800;
-  font-size: 1.1rem;
-  box-shadow: 0 8px 30px rgba(245, 158, 11, 0.35);
+  gap: 0.85rem;
+  font-weight: 900;
+  font-size: 1.12rem;
+  letter-spacing: 0.75px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  box-shadow: var(--cta-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.buttonJoin span {
+  position: relative;
+  z-index: 2;
+}
+
+.buttonJoin i {
+  position: relative;
+  z-index: 2;
+  transition: transform 0.25s ease;
 }
 
 .buttonJoin:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 35px rgba(245, 158, 11, 0.5);
-  filter: brightness(1.08);
+  background: var(--accent-gold-gradient-hover);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: var(--cta-shadow-hover);
+  border-color: #fef08a;
+  color: #04070c;
+}
+
+.buttonJoin:hover i {
+  transform: translateX(4px);
+}
+
+.buttonJoin:active {
+  transform: translateY(-1px) scale(0.99);
+  box-shadow: var(--cta-shadow);
 }
 
 .mainContainer_right {

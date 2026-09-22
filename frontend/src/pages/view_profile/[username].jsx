@@ -3,6 +3,8 @@ import DashboardLayout from '@/layout/DashboardLayout';
 import UserLayout from '@/layout/UserLayout';
 import React, { useEffect, useState } from 'react';
 import styles from "./index.module.css";
+import Avatar from '@/Components/Avatar';
+import { resolveAvatarUrl } from '@/config/imageUtils';
 import { getAllPosts } from '@/config/redux/action/postAction';
 import { getConnectionRequest, sendConnectionsRequest, getMyConnectionRequests, getAboutUser } from '@/config/redux/action/authAction';
 import { useRouter } from 'next/router';
@@ -208,14 +210,12 @@ export default function ViewProfilePage({userProfile}) {
                 {/* Left Side: Athlete Scouting Card */}
                 <div className={styles.scoutingCard}>
                   <div className={styles.avatarWrapper}>
-                    <img 
+                    <Avatar 
                       className={styles.profileAvatar} 
-                      src={
-                        !userProfile.userId.profilePicture || userProfile.userId?.profilePicture === 'default.jpg'
-                          ? `${BASE_URL}/uploads/default.jpg`
-                          : `${BASE_URL}/uploads/${userProfile.userId.profilePicture}`
-                      } 
-                      alt={`${userProfile.userId.name}'s profile`} 
+                      src={resolveAvatarUrl(userProfile.userId?.profilePicture)} 
+                      name={userProfile.userId?.name}
+                      alt={`${userProfile.userId?.name || 'Athlete'}'s profile`} 
+                      size={100}
                     />
                   </div>
 
@@ -428,13 +428,11 @@ export default function ViewProfilePage({userProfile}) {
                                 className={styles.connectionCard}
                                 onClick={() => router.push(`/view_profile/${conn.username}`)}
                               >
-                                <img 
-                                  src={
-                                    !conn.profilePicture || conn.profilePicture === 'default.jpg'
-                                      ? `${BASE_URL}/uploads/default.jpg`
-                                      : `${BASE_URL}/uploads/${conn.profilePicture}`
-                                  } 
-                                  alt={conn.name} 
+                                <Avatar 
+                                  src={resolveAvatarUrl(conn.profilePicture)} 
+                                  name={conn.name}
+                                  alt={conn.name || 'Athlete'} 
+                                  size={45}
                                   className={styles.connectionAvatar}
                                 />
                                 <div className={styles.connectionNameInfo}>

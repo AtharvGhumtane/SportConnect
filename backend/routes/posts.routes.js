@@ -15,18 +15,9 @@ const __dirname = path.dirname(__filename);
 
 const router = Router();
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, path.join(__dirname, '../uploads'));
-    },
-    filename: (req, file, cb) => {
-        const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        const ext = path.extname(file.originalname);
-        cb(null, `post-${unique}${ext}`);
-    }
-});
+const storage = multer.memoryStorage();
 
-const upload = multer({storage:storage});
+const upload = multer({ storage });
 
 router.route('/').get(activeCheck);
 
